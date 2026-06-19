@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PostForge — One-Click Social Content for Small Business</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --ink:#1a1a2e; --slate:#2d2d44; --muted:#6e6d80;
+  --paper:#f7f5f1; --paper-deep:#efece5;
+  --coral:#ff6b4a; --coral-deep:#e0532f; --coral-glow:rgba(255,107,74,.55);
+  --yellow:#ffd23f; --green:#1d7a5f;
+  --line:#e8e6e1; --white:#ffffff;
+  --r:10px; --r-lg:16px;
+  --shadow-stage:0 2px 8px rgba(26,26,46,.04),0 24px 48px -16px rgba(26,26,46,.18);
+  --F:"Space Grotesk",sans-serif; --FB:"Inter",sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--FB)}
+body{background:var(--paper);color:var(--slate);overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
+
+/* ============================================================
+   LAYOUT GRID
+   ============================================================ */
+.app{
+  display:grid;
+  grid-template-columns:288px 1fr 308px;
+  grid-template-rows:56px 1fr;
+  height:100vh;
+}
+
+/* ---- Top bar ---- */
+.topbar{
+  grid-column:1/-1;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;background:var(--white);border-bottom:1px solid var(--line);z-index:20;
+}
+.brand{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--F);font-weight:700;font-size:17px;letter-spacing:-.025em;color:var(--ink);
+}
+.brand-mark{
+  width:26px;height:26px;border-radius:7px;background:var(--coral);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:800;transform:rotate(-5deg);
+}
+.topbar-pills{display:flex;gap:8px}
+.pill{
+  display:flex;align-items:center;gap:5px;padding:6px 13px;border-radius:50px;
+  background:var(--paper);border:1px solid var(--line);
+  font-size:12.5px;font-weight:600;color:var(--slate);
+  transition:background .12s,border-color .12s;
+}
+.pill:hover{background:var(--paper-deep);border-color:#ccc}
+
+/* ---- Rails ---- */
+.rail{background:var(--white);overflow-y:auto;overflow-x:hidden}
+.rail-left{border-right:1px solid var(--line)}
+.rail-right{border-left:1px solid var(--line)}
+.rail::-webkit-scrollbar{width:6px}
+.rail::-webkit-scrollbar-thumb{background:#dddad4;border-radius:3px}
+
+/* ---- Stage ---- */
+.stage-wrap{
+  background:var(--paper-deep);display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:auto;padding:60px 28px 56px;
+}
+.stage-shell{
+  background:var(--white);box-shadow:var(--shadow-stage);
+  position:relative;flex-shrink:0;
+  transition:width .45s cubic-bezier(.16,1,.3,1),height .45s cubic-bezier(.16,1,.3,1);
+}
+#canvas{display:block;width:100%;height:100%}
+.stage-empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;color:#c2c0b8;pointer-events:none;
+}
+.stage-empty .icon{font-size:40px}
+.stage-empty .txt{font-family:var(--F);font-size:14px;font-weight:600}
+.stage-empty .sub{font-size:12px;opacity:.7}
+.stage-dims{
+  position:absolute;bottom:14px;left:0;right:0;text-align:center;
+  font-size:11px;color:#aaa8b6;font-family:var(--F);font-weight:500;letter-spacing:.04em;
+}
+
+/* Platform bar (floating, top-center) */
+.platform-bar{
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.97);backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-radius:50px;padding:5px 8px;
+  box-shadow:0 2px 12px rgba(26,26,46,.07);z-index:10;white-space:nowrap;
+}
+.platform-bar select{
+  border:none;background:transparent;font-size:12.5px;font-weight:700;
+  color:var(--ink);padding:5px 8px;border-radius:50px;max-width:220px;
+}
+
+/* Export button (bottom-center) */
+.stage-bar-bottom{
+  position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:10;
+}
+.btn-export{
+  display:flex;align-items:center;gap:7px;
+  padding:10px 22px;border-radius:50px;
+  background:var(--coral);color:#fff;font-family:var(--F);font-weight:700;font-size:13.5px;
+  box-shadow:0 8px 20px -6px var(--coral-glow);
+  transition:transform .12s,box-shadow .12s;
+}
+.btn-export:hover{transform:translateY(-1px);box-shadow:0 10px 24px -5px var(--coral-glow)}
+.btn-export:active{transform:translateY(0)}
+
+/* ============================================================
+   LEFT RAIL — INPUT SECTIONS
+   ============================================================ */
+.section{padding:16px 18px;border-bottom:1px solid var(--line)}
+.section:last-child{border-bottom:none}
+.sec-label{
+  display:flex;align-items:center;gap:7px;
+  font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:#aaa8b6;margin-bottom:12px;
+}
+.sec-label .n{
+  width:17px;height:17px;border-radius:4px;background:var(--ink);color:#fff;
+  font-size:9.5px;display:flex;align-items:center;justify-content:center;font-weight:800;
+}
+
+/* Dropzone */
+.dz{
+  border:1.5px dashed #ccc8be;border-radius:var(--r);padding:18px 12px;text-align:center;
+  background:var(--paper);position:relative;cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+.dz:hover,.dz.over{border-color:var(--coral);background:#fff4f1}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:20px;margin-bottom:5px;opacity:.55}
+.dz-t{font-size:12.5px;font-weight:600;color:var(--slate)}
+.dz-s{font-size:11px;color:#aaa8b6;margin-top:2px}
+.dz.done{border-style:solid;border-color:var(--green);background:#f0faf6}
+
+.thumb-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.thumb-row img{width:34px;height:34px;border-radius:6px;object-fit:cover;border:1px solid var(--line)}
+.thumb-meta{flex:1;min-width:0}
+.thumb-meta strong{display:block;font-size:12px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thumb-meta span{font-size:10.5px;color:#aaa8b6}
+.btn-rm{
+  width:22px;height:22px;border-radius:50%;border:none;background:var(--paper-deep);
+  color:#aaa8b6;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.btn-rm:hover{background:#fde2da;color:var(--coral-deep)}
+
+/* Fields */
+.field{margin-bottom:11px}
+.field:last-child{margin-bottom:0}
+.field label{display:block;font-size:11.5px;font-weight:700;color:var(--slate);margin-bottom:5px}
+.field input,.field select,.field textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  font-size:13px;color:var(--ink);background:var(--paper);
+  transition:border-color .12s,background .12s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--coral);background:#fff;outline:none;
+}
+.field textarea{resize:none;line-height:1.4}
+.char{font-size:10px;color:#bbb;text-align:right;margin-top:2px}
+
+/* Segmented controls */
+.seg{display:grid;gap:5px}
+.seg.c2{grid-template-columns:1fr 1fr}
+.seg.c3{grid-template-columns:1fr 1fr 1fr}
+.seg-b{
+  padding:7px 4px;border:1px solid var(--line);border-radius:7px;
+  background:var(--paper);font-size:11.5px;font-weight:600;color:#aaa8b6;text-align:center;
+  transition:all .1s;
+}
+.seg-b:hover{border-color:#c0bcb2}
+.seg-b.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* Slider */
+.slider-r{display:flex;align-items:center;gap:10px}
+.slider-r input[type=range]{flex:1;accent-color:var(--coral);height:4px}
+.slider-v{font-size:11.5px;font-weight:700;color:var(--slate);width:26px;text-align:right}
+
+/* Chip buttons (badges / themes) */
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+  padding:5px 11px;border-radius:50px;border:1px solid var(--line);
+  background:var(--paper);font-size:11.5px;font-weight:700;color:var(--slate);
+}
+.chip:hover{border-color:var(--coral);color:var(--coral-deep)}
+.chip.selected,.chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* ============================================================
+   RIGHT RAIL — TABS
+   ============================================================ */
+.tab-strip{display:flex;border-bottom:1px solid var(--line)}
+.tab-btn{
+  flex:1;padding:13px 0;font-size:12px;font-weight:700;color:#aaa8b6;
+  border-bottom:2px solid transparent;text-align:center;
+}
+.tab-btn.active{color:var(--ink);border-bottom-color:var(--coral)}
+.tab-pane{display:none;padding:0}
+.tab-pane.active{display:block}
+
+/* Layer rows */
+.layer-r{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 16px;border-bottom:1px solid var(--line);
+}
+.layer-r .li{
+  width:28px;height:28px;border-radius:6px;background:var(--paper-deep);
+  display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;
+}
+.layer-r .ln{flex:1;font-size:12px;font-weight:600;color:var(--slate)}
+.lv-toggle{
+  width:26px;height:26px;border-radius:6px;background:transparent;
+  color:#aaa8b6;font-size:12px;display:flex;align-items:center;justify-content:center;
+}
+.lv-toggle:hover{background:var(--paper-deep);color:var(--slate)}
+
+/* Brand kit tab */
+.bk-box{padding:16px 18px}
+.bk-saved{
+  display:flex;align-items:center;gap:6px;padding:9px 12px;border-radius:8px;
+  background:#f0faf6;border:1px solid #d4f0e4;font-size:12px;color:var(--green);
+  font-weight:600;margin-bottom:14px;
+}
+.swatches{display:flex;gap:7px;flex-wrap:wrap}
+.swatch{
+  width:26px;height:26px;border-radius:50%;border:2px solid var(--white);
+  box-shadow:0 0 0 1px var(--line);cursor:pointer;
+}
+.swatch.active{box-shadow:0 0 0 2.5px var(--ink)}
+
+/* Export tab */
+.ex-box{padding:16px 18px}
+.q-opt{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;
+  font-size:12.5px;font-weight:600;color:var(--slate);
+}
+.q-opt input{accent-color:var(--coral)}
+.fmt-row{display:flex;gap:5px;margin-top:5px}
+.fmt-btn{
+  flex:1;padding:8px 4px;border-radius:7px;border:1px solid var(--line);
+  background:var(--paper);font-size:12px;font-weight:700;color:var(--slate);text-align:center;
+}
+.fmt-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fmt-btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* Phase-2 pill */
+.p2{
+  display:inline-flex;align-items:center;font-size:9px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#a07c2a;background:#fff3d0;padding:2px 6px;border-radius:50px;margin-left:5px;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.modal-wrap{
+  position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+}
+.modal-wrap.open{display:flex}
+.modal-backdrop{position:absolute;inset:0;background:rgba(26,26,46,.5);backdrop-filter:blur(3px)}
+.modal{
+  position:relative;z-index:1;background:var(--white);border-radius:var(--r-lg);
+  width:min(700px,94vw);max-height:80vh;display:flex;flex-direction:column;
+  box-shadow:0 24px 64px -16px rgba(26,26,46,.35);
+  overflow:hidden;
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 22px;border-bottom:1px solid var(--line);
+  font-family:var(--F);font-size:16px;font-weight:700;color:var(--ink);flex-shrink:0;
+}
+.modal-close{
+  width:28px;height:28px;border-radius:50%;background:var(--paper-deep);
+  color:var(--slate);font-size:14px;display:flex;align-items:center;justify-content:center;
+}
+.modal-close:hover{background:#fde2da;color:var(--coral-deep)}
+.modal-body{overflow-y:auto;padding:20px 22px;flex:1}
+
+/* Template grid */
+.tmpl-cat-label{
+  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:#aaa8b6;padding:8px 0 10px;
+}
+.tmpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:16px}
+.tmpl-card{
+  padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--paper);text-align:left;
+  transition:border-color .12s,background .12s,transform .1s;
+}
+.tmpl-card:hover{border-color:var(--coral);background:#fff4f1;transform:translateY(-1px)}
+.tmpl-card strong{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.tmpl-card span{font-size:11px;color:#aaa8b6}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:50px;
+  font-size:13px;font-weight:600;opacity:0;pointer-events:none;z-index:500;
+  transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============================================================
+   MOBILE BREAKPOINT
+   ============================================================ */
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:56px 1fr auto auto}
+  body{overflow:auto}
+  .rail-left{max-height:45vh;border-right:none;border-bottom:1px solid var(--line)}
+  .rail-right{order:3;border-left:none;border-top:1px solid var(--line);max-height:40vh}
+  .stage-wrap{order:2;min-height:55vw;padding:48px 12px 44px}
+}
+</style>
+</head>
+<body>
+
+<!-- ====================================================
+     APP SHELL
+     ==================================================== -->
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">P</span>
+      PostForge
+    </div>
+    <div class="topbar-pills">
+      <button class="pill" id="btnTemplates">🗂 Templates</button>
+      <button class="pill" id="btnBrandKit">🎨 Brand Kit</button>
+    </div>
+  </div>
+
+  <!-- ===== LEFT RAIL ===== -->
+  <div class="rail rail-left">
+
+    <!-- 1. MEDIA UPLOAD -->
+    <div class="section">
+      <div class="sec-label"><span class="n">1</span>Photo or video</div>
+      <div class="dz" id="dzMedia">
+        <input type="file" id="inputMedia" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm">
+        <div class="dz-icon">📷</div>
+        <div class="dz-t">Drop image or video here</div>
+        <div class="dz-s">JPG · PNG · WEBP · MP4 · MOV</div>
+      </div>
+      <div class="thumb-row" id="mediaThumbRow" style="display:none">
+        <img id="mediaThumb" src="" alt="">
+        <div class="thumb-meta"><strong id="mediaName"></strong><span id="mediaDims"></span></div>
+        <button class="btn-rm" id="mediaRemove" title="Remove">✕</button>
+      </div>
+    </div>
+
+    <!-- 2. LOGO -->
+    <div class="section">
+      <div class="sec-label"><span class="n">2</span>Logo</div>
+      <div class="dz" id="dzLogo">
+        <input type="file" id="inputLogo" accept="image/png,image/jpeg,image/webp">
+        <div class="dz-icon">🏷</div>
+        <div class="dz-t">Drop your logo</div>
+        <div class="dz-s">Transparent PNG recommended</div>
+      </div>
+      <div class="thumb-row" id="logoThumbRow" style="display:none">
+        <img id="logoThumb" src="" alt="" style="background:repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 0/10px 10px">
+        <div class="thumb-meta"><strong id="logoName"></strong><span>Saved to brand kit</span></div>
+        <button class="btn-rm" id="logoRemove" title="Remove">✕</button>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Position</label>
+        <div class="seg c2" id="logoPosGrid">
+          <button class="seg-b" data-pos="tl">↖ Top left</button>
+          <button class="seg-b active" data-pos="tr">↗ Top right</button>
+          <button class="seg-b" data-pos="bl">↙ Bottom left</button>
+          <button class="seg-b" data-pos="br">↘ Bottom right</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Size</label>
+        <div class="seg c3" id="logoSizeGrid">
+          <button class="seg-b" data-size="s">Small</button>
+          <button class="seg-b active" data-size="m">Medium</button>
+          <button class="seg-b" data-size="l">Large</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Margin — <span id="logoMarginVal">24</span>px</label>
+        <div class="slider-r">
+          <input type="range" id="logoMargin" min="0" max="60" value="24">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. OFFER DETAILS -->
+    <div class="section">
+      <div class="sec-label"><span class="n">3</span>Offer details</div>
+      <div class="field">
+        <label>Headline</label>
+        <textarea id="inputHeadline" rows="2" maxlength="60" placeholder="Weekend Special">Weekend Special</textarea>
+        <div class="char"><span id="headlineCount">15</span>/60</div>
+      </div>
+      <div class="field">
+        <label>Subheadline</label>
+        <input type="text" id="inputSubheadline" maxlength="50" placeholder="Limited time offer" value="Limited time only">
+      </div>
+      <div class="field">
+        <label>Price / offer</label>
+        <input type="text" id="inputPrice" maxlength="20" placeholder="20% OFF or Rs. 499" value="20% OFF">
+      </div>
+      <div class="field">
+        <label>Call to action</label>
+        <select id="inputCTA">
+          <option>Shop Now</option>
+          <option>Order Now</option>
+          <option>Explore Now</option>
+          <option>Get Quote</option>
+          <option>Book Today</option>
+          <option>Reserve Now</option>
+          <option>Call Now</option>
+          <option>Message Us</option>
+          <option>Visit Store</option>
+          <option>Learn More</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 4. BADGE -->
+    <div class="section">
+      <div class="sec-label"><span class="n">4</span>Badge</div>
+      <div class="chips" id="badgeChips">
+        <button class="chip" data-badge="NEW">NEW</button>
+        <button class="chip" data-badge="HOT">HOT</button>
+        <button class="chip" data-badge="SALE">SALE</button>
+        <button class="chip" data-badge="LIMITED OFFER">LIMITED</button>
+        <button class="chip" data-badge="20% OFF">20% OFF</button>
+        <button class="chip" data-badge="50% OFF">50% OFF</button>
+        <button class="chip" data-badge="BEST SELLER">BEST SELLER</button>
+        <button class="chip selected" data-badge="">None</button>
+      </div>
+    </div>
+
+    <!-- 5. THEME -->
+    <div class="section">
+      <div class="sec-label"><span class="n">5</span>Theme</div>
+      <div class="chips" id="themeChips">
+        <button class="chip theme-chip active" data-theme="modern">Modern</button>
+        <button class="chip theme-chip" data-theme="minimal">Minimal</button>
+        <button class="chip theme-chip" data-theme="luxury">Luxury</button>
+        <button class="chip theme-chip" data-theme="bold">Bold</button>
+        <button class="chip theme-chip" data-theme="premium">Premium</button>
+        <button class="chip theme-chip" data-theme="festive">Festive</button>
+      </div>
+    </div>
+
+  </div><!-- /rail-left -->
+
+  <!-- ===== CENTER STAGE ===== -->
+  <div class="stage-wrap">
+
+    <!-- Platform size picker -->
+    <div class="platform-bar">
+      <select id="platformSelect">
+        <option value="ig_post"    data-w="1080" data-h="1080">Instagram Post · 1080×1080</option>
+        <option value="ig_portrait"data-w="1080" data-h="1350">Instagram Portrait · 1080×1350</option>
+        <option value="ig_story"   data-w="1080" data-h="1920">Instagram Story · 1080×1920</option>
+        <option value="fb_post"    data-w="1200" data-h="630" >Facebook Post · 1200×630</option>
+        <option value="fb_story"   data-w="1080" data-h="1920">Facebook Story · 1080×1920</option>
+        <option value="li_post"    data-w="1200" data-h="1200">LinkedIn Post · 1200×1200</option>
+        <option value="li_banner"  data-w="1584" data-h="396" >LinkedIn Banner · 1584×396</option>
+        <option value="pin"        data-w="1000" data-h="1500">Pinterest Pin · 1000×1500</option>
+        <option value="x_post"     data-w="1600" data-h="900" >X Post · 1600×900</option>
+        <option value="yt_thumb"   data-w="1280" data-h="720" >YouTube Thumbnail · 1280×720</option>
+        <option value="wa_status"  data-w="1080" data-h="1920">WhatsApp Status · 1080×1920</option>
+      </select>
+    </div>
+
+    <!-- Canvas stage -->
+    <div class="stage-shell" id="stageShell">
+      <canvas id="canvas" width="1080" height="1080"></canvas>
+      <div class="stage-empty" id="stageEmptyHint">
+        <div class="icon">🖼</div>
+        <div class="txt">Upload a photo to get started</div>
+        <div class="sub">or pick a template from the top bar</div>
+      </div>
+    </div>
+
+    <div class="stage-dims" id="stageDims">1080 × 1080 px</div>
+
+    <!-- Bottom export button -->
+    <div class="stage-bar-bottom">
+      <button class="btn-export" id="btnExport">⬇&nbsp; Download</button>
+    </div>
+  </div><!-- /stage-wrap -->
+
+  <!-- ===== RIGHT RAIL ===== -->
+  <div class="rail rail-right">
+
+    <div class="tab-strip">
+      <button class="tab-btn active" data-tab="layers">Layers</button>
+      <button class="tab-btn" data-tab="brand">Brand Kit</button>
+      <button class="tab-btn" data-tab="export">Export</button>
+    </div>
+
+    <!-- LAYERS TAB -->
+    <div class="tab-pane active" id="tab-layers">
+      <div class="layer-r">
+        <div class="li">🖼</div><div class="ln">Background photo</div>
+        <button class="lv-toggle" data-layer="media" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r">
+        <div class="li">🏷</div><div class="ln">Logo</div>
+        <button class="lv-toggle" data-layer="logo" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r">
+        <div class="li">Aa</div><div class="ln">Headline</div>
+        <button class="lv-toggle" data-layer="headline" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r">
+        <div class="li">💲</div><div class="ln">Price / offer</div>
+        <button class="lv-toggle" data-layer="price" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r">
+        <div class="li">🔘</div><div class="ln">CTA button</div>
+        <button class="lv-toggle" data-layer="cta" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r">
+        <div class="li">🏆</div><div class="ln">Badge</div>
+        <button class="lv-toggle" data-layer="badge" title="Toggle visibility">👁</button>
+      </div>
+      <div class="layer-r" style="opacity:.45">
+        <div class="li">▦</div>
+        <div class="ln">QR code <span class="p2">Phase 2</span></div>
+        <button class="lv-toggle" disabled>👁</button>
+      </div>
+
+      <div style="padding:14px 16px;border-top:1px solid var(--line)">
+        <div class="field">
+          <label>Contact / website line</label>
+          <input type="text" id="inputContact" placeholder="📞 0400 000 000 · @yourbiz">
+        </div>
+      </div>
+    </div>
+
+    <!-- BRAND KIT TAB -->
+    <div class="tab-pane" id="tab-brand">
+      <div class="bk-box">
+        <div class="bk-saved" id="bkSavedPill" style="display:none">✓ Brand kit saved to this browser</div>
+        <div class="field">
+          <label>Business name</label>
+          <input type="text" id="bkName" placeholder="My Cafe">
+        </div>
+        <div class="field">
+          <label>Brand accent color</label>
+          <div class="swatches" id="brandSwatches">
+            <div class="swatch active" data-color="#ff6b4a" style="background:#ff6b4a" title="Coral"></div>
+            <div class="swatch" data-color="#1d7a5f" style="background:#1d7a5f" title="Green"></div>
+            <div class="swatch" data-color="#1a1a2e" style="background:#1a1a2e" title="Ink"></div>
+            <div class="swatch" data-color="#c0392b" style="background:#c0392b" title="Red"></div>
+            <div class="swatch" data-color="#7d5fff" style="background:#7d5fff" title="Violet"></div>
+            <div class="swatch" data-color="#0d6efd" style="background:#0d6efd" title="Blue"></div>
+            <div class="swatch" data-color="#d4af37" style="background:#d4af37" title="Gold"></div>
+            <div class="swatch" data-color="#e63946" style="background:#e63946" title="Crimson"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Phone number</label>
+          <input type="text" id="bkPhone" placeholder="0400 000 000">
+        </div>
+        <div class="field">
+          <label>Website</label>
+          <input type="text" id="bkWebsite" placeholder="yoursite.com.au">
+        </div>
+        <button class="pill" id="btnSaveBrandKit" style="width:100%;justify-content:center;margin-top:8px;padding:10px 0">
+          💾 Save brand kit to browser
+        </button>
+      </div>
+    </div>
+
+    <!-- EXPORT TAB -->
+    <div class="tab-pane" id="tab-export">
+      <div class="ex-box">
+        <div class="field">
+          <label>Quality</label>
+          <label class="q-opt"><span>Social media — 1× (1080px)</span><input type="radio" name="q" value="1" checked></label>
+          <label class="q-opt"><span>HD — 2× (2160px)</span><input type="radio" name="q" value="2"></label>
+          <label class="q-opt"><span>Print — 3× (3240px)</span><input type="radio" name="q" value="3"></label>
+        </div>
+        <div class="field">
+          <label>Format</label>
+          <div class="fmt-row">
+            <button class="fmt-btn active" data-fmt="png">PNG</button>
+            <button class="fmt-btn" data-fmt="jpg">JPG</button>
+            <button class="fmt-btn" data-fmt="mp4">MP4</button>
+          </div>
+        </div>
+        <button class="btn-export" id="btnExport2" style="width:100%;justify-content:center;margin-top:14px">
+          ⬇ Download content
+        </button>
+        <div style="margin-top:12px;font-size:11px;color:#aaa8b6;text-align:center;line-height:1.5">
+          All processing happens in your browser.<br>No files are uploaded to any server.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /rail-right -->
+
+</div><!-- /app -->
+
+<!-- ====================================================
+     TEMPLATE MODAL
+     ==================================================== -->
+<div class="modal-wrap" id="modalTemplates">
+  <div class="modal-backdrop"></div>
+  <div class="modal">
+    <div class="modal-head">
+      🗂 Template Library
+      <button class="modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="tmplCategories">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+
+/* ============================================================
+   POSTFORGE — APP ENGINE (FIXED)
+   ============================================================ */
+
+/* ---------- STATE ---------- */
+const state = {
+  media: null,
+  logo: null,
+  platform: {w:1080, h:1080, key:'ig_post'},
+  theme: 'modern',
+  badge: '',
+  headline: 'Weekend Special',
+  subheadline: 'Limited time only',
+  price: '20% OFF',
+  cta: 'Shop Now',
+  contact: '',
+  logoPos: 'tr',
+  logoSize: 'm',
+  logoMargin: 24,
+  brandColor: '#ff6b4a',
+  layers: {media:true, logo:true, headline:true, price:true, cta:true, badge:true},
+  quality: 1,
+  format: 'png',
+};
+
+/* ---------- DOM ---------- */
+const $ = id => document.getElementById(id);
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d');
+let renderScheduled = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+/* ---------- UTILS ---------- */
+function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------- DRAWING (accepts optional target context) ---------- */
+function draw(targetCtx, targetW, targetH){
+  const c = targetCtx || ctx;
+  const w = targetW || state.platform.w;
+  const h = targetH || state.platform.h;
+
+  // Ensure live canvas matches platform dimensions
+  if(!targetCtx){
+    if(canvas.width !== w) canvas.width = w;
+    if(canvas.height !== h) canvas.height = h;
+  }
+
+  c.clearRect(0,0,w,h);
+  c.fillStyle = '#1a1a2e';
+  c.fillRect(0,0,w,h);
+
+  // 1. MEDIA
+  if(state.layers.media && state.media){
+    if(state.media.type === 'video' && state.media.videoEl && state.media.videoEl.readyState >= 2){
+      const v = state.media.videoEl;
+      const f = fitCover(v.videoWidth, v.videoHeight, w, h);
+      c.drawImage(v, f.x, f.y, f.w, f.h);
+    } else if(state.media.type === 'image' && state.media.imgEl){
+      const img = state.media.imgEl;
+      const f = fitCover(img.naturalWidth||img.width, img.naturalHeight||img.height, w, h);
+      c.drawImage(img, f.x, f.y, f.w, f.h);
+    }
+  } else {
+    c.fillStyle = '#f0f0f0';
+    c.fillRect(0,0,w,h);
+    c.fillStyle = '#e0e0e0';
+    for(let i=0;i<w;i+=40) for(let j=0;j<h;j+=40) c.fillRect(i,j,1,1);
+  }
+
+  // 2. OVERLAY
+  drawThemeOverlay(c, w, h);
+  if(state.layers.badge && state.badge) drawBadge(c, w, h);
+  if(state.layers.logo && state.logo) drawLogo(c, w, h);
+  drawTextBlock(c, w, h);
+  if(state.layers.cta && state.cta) drawCTA(c, w, h);
+  if(state.contact) drawContact(c, w, h);
+}
+
+function fitCover(sw, sh, dw, dh){
+  const s = Math.max(dw/sw, dh/sh);
+  const w = sw*s, h = sh*s;
+  return {x:(dw-w)/2, y:(dh-h)/2, w, h, s};
+}
+function fitContain(sw, sh, dw, dh){
+  const s = Math.min(dw/sw, dh/sh);
+  return {w:sw*s, h:sh*s, s};
+}
+
+function drawThemeOverlay(c, w, h){
+  const t = state.theme;
+  if(t === 'modern'){
+    const grad = c.createLinearGradient(0, h*0.45, 0, h);
+    grad.addColorStop(0, 'rgba(26,26,46,0)');
+    grad.addColorStop(1, 'rgba(26,26,46,0.82)');
+    c.fillStyle = grad; c.fillRect(0,0,w,h);
+  } else if(t === 'minimal'){
+    c.fillStyle = 'rgba(255,255,255,0.92)'; c.fillRect(0, h*0.55, w, h*0.45);
+  } else if(t === 'luxury'){
+    const grad = c.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, 'rgba(212,175,55,0.08)');
+    grad.addColorStop(1, 'rgba(26,26,46,0.75)');
+    c.fillStyle = grad; c.fillRect(0,0,w,h);
+    c.strokeStyle = 'rgba(212,175,55,0.4)'; c.lineWidth = 3;
+    c.strokeRect(20,20,w-40,h-40);
+  } else if(t === 'bold'){
+    c.fillStyle = 'rgba(26,26,46,0.55)'; c.fillRect(0,0,w,h);
+    const grad = c.createLinearGradient(0, h*0.6, 0, h);
+    grad.addColorStop(0, 'rgba(255,107,74,0)');
+    grad.addColorStop(1, 'rgba(255,107,74,0.35)');
+    c.fillStyle = grad; c.fillRect(0,0,w,h);
+  } else if(t === 'premium'){
+    const grad = c.createLinearGradient(0, h*0.35, 0, h);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.78)');
+    c.fillStyle = grad; c.fillRect(0,0,w,h);
+  } else if(t === 'festive'){
+    const grad = c.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, 'rgba(255,107,74,0.15)');
+    grad.addColorStop(0.5, 'rgba(255,211,63,0.1)');
+    grad.addColorStop(1, 'rgba(29,122,95,0.15)');
+    c.fillStyle = grad; c.fillRect(0,0,w,h);
+    const grad2 = c.createLinearGradient(0, h*0.5, 0, h);
+    grad2.addColorStop(0, 'rgba(0,0,0,0)');
+    grad2.addColorStop(1, 'rgba(0,0,0,0.65)');
+    c.fillStyle = grad2; c.fillRect(0,0,w,h);
+  }
+}
+
+function drawBadge(c, w, h){
+  const badge = state.badge;
+  const pad = 28;
+  c.save();
+  c.font = 'bold ' + Math.max(18, w*0.024) + 'px "Space Grotesk", sans-serif';
+  const tw = c.measureText(badge).width;
+  const bw = tw + 36, bh = 44;
+  const x = w - pad - bw, y = pad;
+  c.fillStyle = state.brandColor;
+  roundRect(c, x, y, bw, bh, 8);
+  c.fill();
+  c.fillStyle = '#fff';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(badge, x + bw/2, y + bh/2 + 1);
+  c.restore();
+}
+
+function drawLogo(c, w, h){
+  if(!state.logo || !state.logo.imgEl) return;
+  const img = state.logo.imgEl;
+  const sizeMap = {s: w*0.10, m: w*0.14, l: w*0.20};
+  const sz = sizeMap[state.logoSize] || w*0.14;
+  const m = state.logoMargin * (w/1080);
+  const f = fitContain(img.naturalWidth||img.width, img.naturalHeight||img.height, sz, sz);
+  let x, y;
+  const pos = state.logoPos;
+  if(pos === 'tl'){ x = m; y = m; }
+  else if(pos === 'tr'){ x = w - m - f.w; y = m; }
+  else if(pos === 'bl'){ x = m; y = h - m - f.h; }
+  else { x = w - m - f.w; y = h - m - f.h; }
+  c.save();
+  c.fillStyle = 'rgba(255,255,255,0.92)';
+  roundRect(c, x-6, y-6, f.w+12, f.h+12, 6);
+  c.fill();
+  c.drawImage(img, x, y, f.w, f.h);
+  c.restore();
+}
+
+function drawTextBlock(c, w, h){
+  const t = state.theme;
+  const isLight = (t === 'minimal');
+  const textColor = isLight ? '#1a1a2e' : '#ffffff';
+  const accent = state.brandColor;
+  c.save();
+  const margin = w * 0.07;
+  const maxW = w - margin*2;
+  let y = h * (t === 'minimal' ? 0.62 : 0.58);
+
+  if(state.layers.headline && state.headline){
+    c.fillStyle = textColor;
+    c.textAlign = 'left';
+    c.textBaseline = 'top';
+    const fontSize = Math.max(32, w * 0.065);
+    c.font = '800 ' + fontSize + 'px "Space Grotesk", sans-serif';
+    const lines = wrapText(c, state.headline, maxW);
+    lines.forEach(line => { c.fillText(line, margin, y); y += fontSize * 1.15; });
+    y += fontSize * 0.15;
+  }
+  if(state.subheadline){
+    c.fillStyle = isLight ? '#6e6d80' : 'rgba(255,255,255,0.75)';
+    const fontSize = Math.max(18, w * 0.032);
+    c.font = '500 ' + fontSize + 'px "Inter", sans-serif';
+    c.fillText(state.subheadline, margin, y);
+    y += fontSize * 1.6;
+  }
+  if(state.layers.price && state.price){
+    c.fillStyle = accent;
+    const fontSize = Math.max(28, w * 0.055);
+    c.font = '700 ' + fontSize + 'px "Space Grotesk", sans-serif';
+    c.fillText(state.price, margin, y);
+    y += fontSize * 1.4;
+  }
+  c.restore();
+}
+
+function drawCTA(c, w, h){
+  const t = state.theme;
+  const isLight = (t === 'minimal');
+  const btnH = Math.max(44, w * 0.08);
+  const btnW = Math.max(160, w * 0.28);
+  const margin = w * 0.07;
+  const x = margin;
+  const y = h - margin - btnH;
+  c.save();
+  c.fillStyle = isLight ? state.brandColor : '#ffffff';
+  roundRect(c, x, y, btnW, btnH, btnH/2);
+  c.fill();
+  c.fillStyle = isLight ? '#ffffff' : '#1a1a2e';
+  c.font = '700 ' + Math.max(14, w*0.025) + 'px "Inter", sans-serif';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(state.cta, x + btnW/2, y + btnH/2 + 1);
+  c.restore();
+}
+
+function drawContact(c, w, h){
+  const margin = w * 0.07;
+  c.save();
+  c.fillStyle = 'rgba(255,255,255,0.55)';
+  c.font = '500 ' + Math.max(11, w*0.018) + 'px "Inter", sans-serif';
+  c.textAlign = 'right';
+  c.textBaseline = 'bottom';
+  c.fillText(state.contact, w - margin, h - margin);
+  c.restore();
+}
+
+function roundRect(c, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  c.beginPath();
+  c.moveTo(x+rr, y);
+  c.lineTo(x+w-rr, y);
+  c.quadraticCurveTo(x+w, y, x+w, y+rr);
+  c.lineTo(x+w, y+h-rr);
+  c.quadraticCurveTo(x+w, y+h, x+w-rr, y+h);
+  c.lineTo(x+rr, y+h);
+  c.quadraticCurveTo(x, y+h, x, y+h-rr);
+  c.lineTo(x, y+rr);
+  c.quadraticCurveTo(x, y, x+rr, y);
+  c.closePath();
+}
+
+function wrapText(c, text, maxW){
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for(const word of words){
+    const test = line ? line + ' ' + word : word;
+    if(c.measureText(test).width > maxW && line){
+      lines.push(line); line = word;
+    } else { line = test; }
+  }
+  if(line) lines.push(line);
+  return lines.length ? lines : [text];
+}
+
+/* ---------- RENDER LOOP ---------- */
+function scheduleRender(){
+  if(renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(()=>{ renderScheduled = false; draw(); });
+}
+
+let videoLoopId = null;
+function startVideoLoop(){
+  if(videoLoopId) cancelAnimationFrame(videoLoopId);
+  function loop(){
+    if(state.media && state.media.type === 'video') scheduleRender();
+    videoLoopId = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* ---------- FILE UPLOAD ---------- */
+function handleFile(file, type){
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+
+  if(type === 'media'){
+    const isVideo = file.type.startsWith('video/');
+    if(isVideo){
+      const video = document.createElement('video');
+      video.src = url;
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('loop', '');
+      video.setAttribute('autoplay', '');
+      video.playsInline = true;
+      video.volume = 1.0;
+      video.muted = true;
+
+      video.addEventListener('loadedmetadata', ()=>{
+        state.media = {file, type:'video', url, width:video.videoWidth, height:video.videoHeight, videoEl:video};
+        updateMediaThumb(file.name, video.videoWidth+'x'+video.videoHeight+' video');
+        $('stageEmptyHint').style.display = 'none';
+        video.play().catch(()=>{});
+        scheduleRender();
+        startVideoLoop();
+      });
+      video.addEventListener('error', ()=>{
+        showToast('Could not load video');
+      });
+      video.addEventListener('error', ()=> showToast('Could not load video'));
+    } else {
+      const img = new Image();
+      img.onload = ()=>{
+        state.media = {file, type:'image', url, width:img.naturalWidth, height:img.naturalHeight, imgEl:img};
+        updateMediaThumb(file.name, img.naturalWidth+'x'+img.naturalHeight+' image');
+        $('stageEmptyHint').style.display = 'none';
+        scheduleRender();
+      };
+      img.src = url;
+    }
+  } else if(type === 'logo'){
+    const img = new Image();
+    img.onload = ()=>{
+      state.logo = {file, url, width:img.naturalWidth, height:img.naturalHeight, imgEl:img};
+      $('logoThumb').src = url;
+      $('logoName').textContent = file.name;
+      $('logoThumbRow').style.display = 'flex';
+      $('dzLogo').classList.add('done');
+      scheduleRender();
+    };
+    img.src = url;
+  }
+}
+
+function updateMediaThumb(name, dims){
+  $('mediaName').textContent = name;
+  $('mediaDims').textContent = dims;
+  $('mediaThumbRow').style.display = 'flex';
+  $('dzMedia').classList.add('done');
+  if(state.media && state.media.type === 'video'){
+    const v = state.media.videoEl;
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    const cx = c.getContext('2d');
+    const drawThumb = ()=>{
+      if(v.readyState >= 2){
+        const f = fitContain(v.videoWidth, v.videoHeight, 64, 64);
+        cx.drawImage(v, (64-f.w)/2, (64-f.h)/2, f.w, f.h);
+        $('mediaThumb').src = c.toDataURL();
+      }
+    };
+    v.addEventListener('loadeddata', drawThumb);
+    setTimeout(drawThumb, 500);
+  } else if(state.media && state.media.imgEl){
+    $('mediaThumb').src = state.media.url;
+  }
+}
+
+/* ---------- EXPORT ---------- */
+function doExport(){
+  const fmt = state.format;
+
+  if(fmt === 'mp4' || fmt === 'webm'){
+    exportVideo(fmt);
+    return;
+  }
+
+  // Image export
+  const q = state.quality;
+  const {w, h} = state.platform;
+  const outW = w * q, outH = h * q;
+
+  const ec = document.createElement('canvas');
+  ec.width = outW; ec.height = outH;
+  const ex = ec.getContext('2d');
+
+  // Draw at full resolution using the dedicated draw function
+  draw(ex, outW, outH);
+
+  const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+  const ext = fmt === 'jpg' ? 'jpg' : 'png';
+
+  // Try toBlob first, fall back to toDataURL
+  if(ec.toBlob){
+    ec.toBlob(function(blob){
+      if(!blob){ showToast('Export failed'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      showToast('Download started');
+    }, mime, 0.92);
+  } else {
+    // Fallback for older browsers
+    const dataUrl = ec.toDataURL(mime, 0.92);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = dataUrl.replace(mime, 'image/octet-stream');
+    a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ document.body.removeChild(a); }, 100);
+    showToast('Download started');
+  }
+}
+
+async function exportVideo(targetFormat){
+  if(!state.media || state.media.type !== 'video'){
+    showToast('Upload a video first to export as video');
+    return;
+  }
+
+  const video = state.media.videoEl;
+  if(!video || video.readyState < 2){
+    showToast('Video not ready yet');
+    return;
+  }
+
+  if(isRecording){
+    // Cancel recording
+    isRecording = false;
+    if(mediaRecorder && mediaRecorder.state === 'recording'){
+      mediaRecorder.stop();
+    }
+    return;
+  }
+
+  // Detect supported MIME type
+  let mimeType = 'video/webm;codecs=vp9,opus';
+  if(!MediaRecorder.isTypeSupported(mimeType)){
+    mimeType = 'video/webm;codecs=vp8,opus';
+    if(!MediaRecorder.isTypeSupported(mimeType)){
+      mimeType = 'video/webm';
+      if(!MediaRecorder.isTypeSupported(mimeType)){
+        showToast('Video export not supported in this browser');
+        return;
+      }
+    }
+  }
+
+  // Show recording UI
+  isRecording = true;
+  updateRecordButton();
+  showToast('Recording video with sound…');
+
+  // 1. PREPARE AUDIO: Create AudioContext to capture sound from the video
+  //    This MUST be done while video is unmuted
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // CRITICAL: Unmute video BEFORE creating MediaElementSource
+  // so the audio graph is active
+  video.muted = false;
+  video.volume = 1.0;
+
+  const audioSource = audioCtx.createMediaElementSource(video);
+  const audioDest = audioCtx.createMediaStreamDestination();
+  audioSource.connect(audioDest);
+  audioSource.connect(audioCtx.destination); // To speakers
+
+  // 2. PREPARE VIDEO: Get stream from the LIVE canvas
+  const videoStream = canvas.captureStream(30);
+
+  // 3. COMBINE: Merge canvas video + video element audio
+  const combinedStream = new MediaStream([
+    ...videoStream.getVideoTracks(),
+    ...audioDest.stream.getAudioTracks()
+  ]);
+
+  // 4. RECORD
+  mediaRecorder = new MediaRecorder(combinedStream, {
+    mimeType: mimeType,
+    videoBitsPerSecond: 8000000,
+    audioBitsPerSecond: 192000
+  });
+
+  recordedChunks = [];
+  mediaRecorder.ondataavailable = function(e){
+    if(e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = function(){
+    audioCtx.close();
+
+    const blob = new Blob(recordedChunks, {type: mimeType});
+    const ext = 'webm';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+
+    isRecording = false;
+    updateRecordButton();
+    showToast('Video saved with sound!');
+
+    // Restore preview state
+    if(state.media && state.media.type === 'video'){
+      video.muted = true;
+      video.play().catch(function(){});
+      startVideoLoop();
+    }
+  };
+
+  mediaRecorder.onerror = function(err){
+    console.error('MediaRecorder error:', err);
+    audioCtx.close();
+    isRecording = false;
+    updateRecordButton();
+    showToast('Export failed');
+    if(state.media && state.media.type === 'video'){
+      video.muted = true;
+      video.play().catch(function(){});
+      startVideoLoop();
+    }
+  };
+
+  // 5. START: Reset to beginning, play, and record
+  video.currentTime = 0;
+  video.play();
+  mediaRecorder.start(100);
+
+  // Stop when video ends
+  video.onended = function(){
+    if(mediaRecorder && mediaRecorder.state === 'recording'){
+      mediaRecorder.stop();
+    }
+  };
+
+  // Fallback safety stop
+  setTimeout(function(){
+    if(mediaRecorder && mediaRecorder.state === 'recording'){
+      mediaRecorder.stop();
+    }
+  }, (video.duration * 1000) + 3000);
+}
+
+function updateRecordButton(){
+  const label = isRecording ? 'Stop Recording' : 'Download';
+  const label2 = isRecording ? 'Stop Recording' : 'Download content';
+  const bg = isRecording ? '#e63946' : '';
+  $('btnExport').innerHTML = isRecording ? 'Stop Recording' : '⬇ Download';
+  $('btnExport').style.background = bg;
+  $('btnExport2').innerHTML = isRecording ? 'Stop Recording' : '⬇ Download content';
+  $('btnExport2').style.background = bg;
+}
+
+/* ---------- INIT ---------- */
+function init(){
+  // Media upload
+  const dzMedia = $('dzMedia');
+  const inputMedia = $('inputMedia');
+  dzMedia.addEventListener('click', ()=>inputMedia.click());
+  dzMedia.addEventListener('dragover', e=>{ e.preventDefault(); dzMedia.classList.add('over'); });
+  dzMedia.addEventListener('dragleave', ()=>dzMedia.classList.remove('over'));
+  dzMedia.addEventListener('drop', e=>{
+    e.preventDefault(); dzMedia.classList.remove('over');
+    if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], 'media');
+  });
+  inputMedia.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], 'media'); });
+  $('mediaRemove').addEventListener('click', ()=>{
+    state.media = null; $('mediaThumbRow').style.display = 'none';
+    $('dzMedia').classList.remove('done'); inputMedia.value = '';
+    if(!state.logo) $('stageEmptyHint').style.display = 'flex';
+    scheduleRender();
+  });
+
+  // Logo upload
+  const dzLogo = $('dzLogo');
+  const inputLogo = $('inputLogo');
+  dzLogo.addEventListener('click', ()=>inputLogo.click());
+  dzLogo.addEventListener('dragover', e=>{ e.preventDefault(); dzLogo.classList.add('over'); });
+  dzLogo.addEventListener('dragleave', ()=>dzLogo.classList.remove('over'));
+  dzLogo.addEventListener('drop', e=>{
+    e.preventDefault(); dzLogo.classList.remove('over');
+    if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], 'logo');
+  });
+  inputLogo.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], 'logo'); });
+  $('logoRemove').addEventListener('click', ()=>{
+    state.logo = null; $('logoThumbRow').style.display = 'none';
+    $('dzLogo').classList.remove('done'); inputLogo.value = '';
+    if(!state.media) $('stageEmptyHint').style.display = 'flex';
+    scheduleRender();
+  });
+
+  // Logo controls
+  $('logoPosGrid').addEventListener('click', e=>{
+    const btn = e.target.closest('.seg-b'); if(!btn) return;
+    $('logoPosGrid').querySelectorAll('.seg-b').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); state.logoPos = btn.dataset.pos; scheduleRender();
+  });
+  $('logoSizeGrid').addEventListener('click', e=>{
+    const btn = e.target.closest('.seg-b'); if(!btn) return;
+    $('logoSizeGrid').querySelectorAll('.seg-b').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); state.logoSize = btn.dataset.size; scheduleRender();
+  });
+  $('logoMargin').addEventListener('input', e=>{
+    state.logoMargin = parseInt(e.target.value);
+    $('logoMarginVal').textContent = state.logoMargin;
+    scheduleRender();
+  });
+
+  // Text inputs
+  $('inputHeadline').addEventListener('input', e=>{
+    state.headline = e.target.value; $('headlineCount').textContent = e.target.value.length; scheduleRender();
+  });
+  $('inputSubheadline').addEventListener('input', e=>{ state.subheadline = e.target.value; scheduleRender(); });
+  $('inputPrice').addEventListener('input', e=>{ state.price = e.target.value; scheduleRender(); });
+  $('inputCTA').addEventListener('change', e=>{ state.cta = e.target.value; scheduleRender(); });
+  $('inputContact').addEventListener('input', e=>{ state.contact = e.target.value; scheduleRender(); });
+
+  // Badges & themes
+  $('badgeChips').addEventListener('click', e=>{
+    const btn = e.target.closest('.chip'); if(!btn) return;
+    $('badgeChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected'); state.badge = btn.dataset.badge; scheduleRender();
+  });
+  $('themeChips').addEventListener('click', e=>{
+    const btn = e.target.closest('.chip'); if(!btn) return;
+    $('themeChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); state.theme = btn.dataset.theme; scheduleRender();
+  });
+
+  // Platform
+  $('platformSelect').addEventListener('change', e=>{
+    const opt = e.target.selectedOptions[0];
+    state.platform = {w:parseInt(opt.dataset.w), h:parseInt(opt.dataset.h), key:e.target.value};
+    canvas.width = state.platform.w;
+    canvas.height = state.platform.h;
+    $('stageDims').textContent = state.platform.w + ' x ' + state.platform.h + ' px';
+    updateStageSize(); scheduleRender();
+  });
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active'); $('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Layer toggles
+  document.querySelectorAll('.lv-toggle').forEach(btn=>{
+    if(btn.disabled) return;
+    btn.addEventListener('click', ()=>{
+      const layer = btn.dataset.layer;
+      state.layers[layer] = !state.layers[layer];
+      btn.textContent = state.layers[layer] ? '👁' : '🙈';
+      btn.style.opacity = state.layers[layer] ? '1' : '0.35';
+      scheduleRender();
+    });
+  });
+
+  // Brand color
+  $('brandSwatches').addEventListener('click', e=>{
+    const sw = e.target.closest('.swatch'); if(!sw) return;
+    $('brandSwatches').querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+    sw.classList.add('active'); state.brandColor = sw.dataset.color; scheduleRender();
+  });
+
+  // Brand kit save/load
+  $('btnSaveBrandKit').addEventListener('click', ()=>{
+    const kit = {name:$('bkName').value, color:state.brandColor, phone:$('bkPhone').value, website:$('bkWebsite').value};
+    localStorage.setItem('postforge_brandkit', JSON.stringify(kit));
+    $('bkSavedPill').style.display = 'flex';
+    showToast('Brand kit saved');
+  });
+  try{
+    const saved = localStorage.getItem('postforge_brandkit');
+    if(saved){
+      const kit = JSON.parse(saved);
+      $('bkName').value = kit.name || ''; $('bkPhone').value = kit.phone || ''; $('bkWebsite').value = kit.website || '';
+      if(kit.color){ state.brandColor = kit.color; $('brandSwatches').querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active', s.dataset.color === kit.color)); }
+      $('bkSavedPill').style.display = 'flex';
+    }
+  } catch(e){}
+
+  // Export settings
+  document.querySelectorAll('input[name="q"]').forEach(r=>{
+    r.addEventListener('change', e=>{ state.quality = parseInt(e.target.value); });
+  });
+  document.querySelectorAll('.fmt-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.disabled) return;
+      document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active'); state.format = btn.dataset.fmt;
+      updateRecordButton();
+    });
+  });
+
+  // Export buttons
+  $('btnExport').addEventListener('click', doExport);
+  $('btnExport2').addEventListener('click', doExport);
+
+  // Modal
+  $('btnTemplates').addEventListener('click', ()=>{ $('modalTemplates').classList.add('open'); populateTemplates(); });
+  $('btnBrandKit').addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    document.querySelector('[data-tab="brand"]').classList.add('active');
+    $('tab-brand').classList.add('active');
+  });
+  document.querySelector('#modalTemplates .modal-close').addEventListener('click', ()=> $('modalTemplates').classList.remove('open'));
+  document.querySelector('#modalTemplates .modal-backdrop').addEventListener('click', ()=> $('modalTemplates').classList.remove('open'));
+
+  // Responsive
+  window.addEventListener('resize', updateStageSize);
+  canvas.width = state.platform.w;
+  canvas.height = state.platform.h;
+  updateStageSize();
+  scheduleRender();
+}
+
+function updateStageSize(){
+  const shell = $('stageShell');
+  const wrap = document.querySelector('.stage-wrap');
+  const {w, h} = state.platform;
+  const aspect = w / h;
+  const maxW = wrap.clientWidth - 56;
+  const maxH = wrap.clientHeight - 120;
+  let cw = maxW, ch = cw / aspect;
+  if(ch > maxH){ ch = maxH; cw = ch * aspect; }
+  shell.style.width = cw + 'px';
+  shell.style.height = ch + 'px';
+}
+
+function populateTemplates(){
+  const cats = {
+    'Restaurant & Cafe': [
+      {name:'Weekend Special', desc:'Bold food promo with price'},
+      {name:'New Menu Item', desc:'Clean minimal announcement'},
+      {name:'Happy Hour', desc:'Festive limited-time offer'},
+    ],
+    'Retail & Fashion': [
+      {name:'Flash Sale', desc:'High-urgency discount post'},
+      {name:'New Arrival', desc:'Elegant product showcase'},
+      {name:'Season Clearance', desc:'Bold price-driven design'},
+    ],
+    'Services': [
+      {name:'Book Now', desc:'Professional CTA layout'},
+      {name:'Free Quote', desc:'Trust-building service promo'},
+    ],
+    'Real Estate': [
+      {name:'Open House', desc:'Premium property listing'},
+      {name:'Just Listed', desc:'Clean modern home showcase'},
+    ],
+  };
+  const container = $('tmplCategories');
+  container.innerHTML = '';
+  for(const [cat, items] of Object.entries(cats)){
+    const label = document.createElement('div');
+    label.className = 'tmpl-cat-label';
+    label.textContent = cat;
+    container.appendChild(label);
+    const grid = document.createElement('div');
+    grid.className = 'tmpl-grid';
+    items.forEach(item=>{
+      const card = document.createElement('button');
+      card.className = 'tmpl-card';
+      card.innerHTML = '<strong>' + item.name + '</strong><span>' + item.desc + '</span>';
+      card.addEventListener('click', ()=>{ applyTemplate(item.name); $('modalTemplates').classList.remove('open'); });
+      grid.appendChild(card);
+    });
+    container.appendChild(grid);
+  }
+}
+
+function applyTemplate(name){
+  const map = {
+    'Weekend Special': {theme:'bold', headline:'Weekend Special', subheadline:'Limited time only', price:'20% OFF', cta:'Order Now', badge:'SALE'},
+    'New Menu Item': {theme:'modern', headline:'New on the Menu', subheadline:'Try it today', price:'', cta:'Explore Now', badge:'NEW'},
+    'Happy Hour': {theme:'festive', headline:'Happy Hour', subheadline:'4PM – 7PM daily', price:'50% OFF Drinks', cta:'Book Today', badge:'HOT'},
+    'Flash Sale': {theme:'bold', headline:'Flash Sale', subheadline:'Ends midnight tonight', price:'Up to 70% OFF', cta:'Shop Now', badge:'LIMITED OFFER'},
+    'New Arrival': {theme:'luxury', headline:'New Arrival', subheadline:'Spring Collection 2026', price:'', cta:'Explore Now', badge:'NEW'},
+    'Season Clearance': {theme:'bold', headline:'End of Season', subheadline:'Last chance to save', price:'From Rs. 499', cta:'Shop Now', badge:'SALE'},
+    'Book Now': {theme:'premium', headline:'Book Your Appointment', subheadline:'Expert care, every time', price:'', cta:'Book Today', badge:''},
+    'Free Quote': {theme:'modern', headline:'Get a Free Quote', subheadline:'No obligation, fast response', price:'', cta:'Get Quote', badge:''},
+    'Open House': {theme:'luxury', headline:'Open House This Sat', subheadline:'12PM – 3PM · 42 Main St', price:'', cta:'Learn More', badge:'NEW'},
+    'Just Listed': {theme:'modern', headline:'Just Listed', subheadline:'Stunning 3-bed family home', price:'$850,000', cta:'Learn More', badge:'HOT'},
+  };
+  const t = map[name]; if(!t) return;
+  state.theme = t.theme; state.headline = t.headline; state.subheadline = t.subheadline;
+  state.price = t.price; state.cta = t.cta; state.badge = t.badge;
+  $('inputHeadline').value = t.headline; $('headlineCount').textContent = t.headline.length;
+  $('inputSubheadline').value = t.subheadline; $('inputPrice').value = t.price; $('inputCTA').value = t.cta;
+  $('themeChips').querySelectorAll('.chip').forEach(b=>b.classList.toggle('active', b.dataset.theme === t.theme));
+  $('badgeChips').querySelectorAll('.chip').forEach(b=>b.classList.toggle('selected', b.dataset.badge === t.badge));
+  showToast('Applied: ' + name);
+  scheduleRender();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>
