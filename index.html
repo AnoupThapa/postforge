@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 /* ============================================================
    DESIGN TOKENS
@@ -309,11 +310,71 @@ input,select,textarea{font-family:inherit}
    ============================================================ */
 .toast{
   position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);
-  background:var(--ink);color:#fff;padding:10px 18px;border-radius:50px;
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:18px;
   font-size:13px;font-weight:600;opacity:0;pointer-events:none;z-index:500;
-  transition:opacity .2s,transform .2s;white-space:nowrap;
+  transition:opacity .2s,transform .2s;white-space:normal;
+  max-width:min(92vw,420px);text-align:center;line-height:1.4;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============================================================
+   CONTENT-TYPE TOGGLE (Promo vs Customer Review)
+   ============================================================ */
+.ct-toggle{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ct-btn{
+  padding:10px 6px;border:1.5px solid var(--line);border-radius:9px;
+  background:var(--paper);font-size:12px;font-weight:700;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;
+  transition:all .12s;
+}
+.ct-btn .ico{font-size:16px}
+.ct-btn:hover{border-color:#c0bcb2}
+.ct-btn.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+/* Star rating picker */
+.star-row{display:flex;gap:4px;margin-top:2px}
+.star-btn{font-size:22px;line-height:1;color:#ddd9cf;transition:transform .08s,color .1s}
+.star-btn:hover{transform:scale(1.12)}
+.star-btn.on{color:var(--yellow)}
+
+/* Background-removal row */
+.bg-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);
+}
+.bg-row .bg-label{font-size:11.5px;font-weight:700;color:var(--slate);display:flex;align-items:center;gap:6px}
+.bg-row .bg-hint{font-size:10px;color:#aaa8b6;margin-top:1px}
+.switch{position:relative;width:36px;height:21px;flex-shrink:0}
+.switch input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0;z-index:1}
+.switch .track{position:absolute;inset:0;background:#ddd9cf;border-radius:20px;transition:background .15s}
+.switch .knob{position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.switch input:checked + .track{background:var(--coral)}
+.switch input:checked + .track .knob{transform:translateX(15px)}
+.switch input:disabled + .track{opacity:.4;cursor:not-allowed}
+
+/* Extracted-swatch label */
+.swatch-group-label{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#aaa8b6;margin:10px 0 6px}
+.swatch.extracted{position:relative}
+.swatch.extracted::after{content:'✨';position:absolute;bottom:-3px;right:-3px;font-size:9px}
+
+/* Batch export panel */
+.batch-platlist{display:grid;gap:5px;max-height:230px;overflow-y:auto;margin:8px 0 12px;border:1px solid var(--line);border-radius:8px;padding:6px}
+.batch-row{
+  display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:6px;font-size:12px;font-weight:600;color:var(--slate);
+}
+.batch-row:hover{background:var(--paper)}
+.batch-row input{accent-color:var(--coral)}
+.batch-row .dims{margin-left:auto;font-size:10.5px;color:#aaa8b6;font-weight:500}
+.batch-actions{display:flex;gap:6px;margin-bottom:8px}
+.batch-actions button{flex:1;padding:7px 4px;border-radius:7px;border:1px solid var(--line);background:var(--paper);font-size:11px;font-weight:700;color:var(--slate)}
+.batch-actions button:hover{border-color:#c0bcb2}
+.batch-progress{display:none;margin-top:10px}
+.batch-progress.show{display:block}
+.batch-progress .bp-label{font-size:11.5px;font-weight:600;color:var(--slate);margin-bottom:6px;display:flex;justify-content:space-between}
+.batch-progress .bp-bar{height:6px;border-radius:4px;background:var(--paper-deep);overflow:hidden}
+.batch-progress .bp-fill{height:100%;background:var(--coral);width:0%;transition:width .25s}
+.batch-results{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.batch-results img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
 
 /* ============================================================
    MOBILE BREAKPOINT
@@ -349,13 +410,22 @@ input,select,textarea{font-family:inherit}
   <!-- ===== LEFT RAIL ===== -->
   <div class="rail rail-left">
 
-    <!-- 1. MEDIA UPLOAD -->
+    <!-- 1. CONTENT TYPE -->
     <div class="section">
-      <div class="sec-label"><span class="n">1</span>Photo or video</div>
+      <div class="sec-label"><span class="n">1</span>What are you posting?</div>
+      <div class="ct-toggle" id="ctToggle">
+        <button class="ct-btn active" data-type="promo"><span class="ico">🏷</span>Promo post</button>
+        <button class="ct-btn" data-type="review"><span class="ico">💬</span>Customer review</button>
+      </div>
+    </div>
+
+    <!-- 2. MEDIA UPLOAD -->
+    <div class="section">
+      <div class="sec-label"><span class="n">2</span><span id="mediaSecLabel">Photo or video</span></div>
       <div class="dz" id="dzMedia">
         <input type="file" id="inputMedia" accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm">
         <div class="dz-icon">📷</div>
-        <div class="dz-t">Drop image or video here</div>
+        <div class="dz-t" id="dzMediaText">Drop image or video here</div>
         <div class="dz-s">JPG · PNG · WEBP · MP4 · MOV</div>
       </div>
       <div class="thumb-row" id="mediaThumbRow" style="display:none">
@@ -363,11 +433,21 @@ input,select,textarea{font-family:inherit}
         <div class="thumb-meta"><strong id="mediaName"></strong><span id="mediaDims"></span></div>
         <button class="btn-rm" id="mediaRemove" title="Remove">✕</button>
       </div>
+      <div class="bg-row" id="bgRow" style="display:none">
+        <div>
+          <div class="bg-label">✂️ Remove background</div>
+          <div class="bg-hint">Best on plain/solid backgrounds</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="bgToggle">
+          <span class="track"><span class="knob"></span></span>
+        </label>
+      </div>
     </div>
 
-    <!-- 2. LOGO -->
+    <!-- 3. LOGO -->
     <div class="section">
-      <div class="sec-label"><span class="n">2</span>Logo</div>
+      <div class="sec-label"><span class="n">3</span>Logo</div>
       <div class="dz" id="dzLogo">
         <input type="file" id="inputLogo" accept="image/png,image/jpeg,image/webp">
         <div class="dz-icon">🏷</div>
@@ -404,9 +484,9 @@ input,select,textarea{font-family:inherit}
       </div>
     </div>
 
-    <!-- 3. OFFER DETAILS -->
-    <div class="section">
-      <div class="sec-label"><span class="n">3</span>Offer details</div>
+    <!-- 4. OFFER DETAILS -->
+    <div class="section" id="secOffer">
+      <div class="sec-label"><span class="n">4</span>Offer details</div>
       <div class="field">
         <label>Headline</label>
         <textarea id="inputHeadline" rows="2" maxlength="60" placeholder="Weekend Special">Weekend Special</textarea>
@@ -437,9 +517,33 @@ input,select,textarea{font-family:inherit}
       </div>
     </div>
 
-    <!-- 4. BADGE -->
-    <div class="section">
-      <div class="sec-label"><span class="n">4</span>Badge</div>
+    <!-- 4b. REVIEW DETAILS (shown instead of Offer details when Customer Review is selected) -->
+    <div class="section" id="secReview" style="display:none">
+      <div class="sec-label"><span class="n">4</span>Review details</div>
+      <div class="field">
+        <label>Customer name</label>
+        <input type="text" id="inputReviewName" maxlength="40" placeholder="Sarah M.">
+      </div>
+      <div class="field">
+        <label>Star rating</label>
+        <div class="star-row" id="starRow">
+          <button class="star-btn on" data-star="1">★</button>
+          <button class="star-btn on" data-star="2">★</button>
+          <button class="star-btn on" data-star="3">★</button>
+          <button class="star-btn on" data-star="4">★</button>
+          <button class="star-btn on" data-star="5">★</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Their words</label>
+        <textarea id="inputReviewQuote" rows="4" maxlength="180" placeholder="Best food in town, we come back every week!">Best food in town, we come back every week!</textarea>
+        <div class="char"><span id="reviewQuoteCount">0</span>/180</div>
+      </div>
+    </div>
+
+    <!-- 5. BADGE (promo posts only) -->
+    <div class="section" id="secBadge">
+      <div class="sec-label"><span class="n">5</span>Badge</div>
       <div class="chips" id="badgeChips">
         <button class="chip" data-badge="NEW">NEW</button>
         <button class="chip" data-badge="HOT">HOT</button>
@@ -452,9 +556,9 @@ input,select,textarea{font-family:inherit}
       </div>
     </div>
 
-    <!-- 5. THEME -->
+    <!-- 6. THEME -->
     <div class="section">
-      <div class="sec-label"><span class="n">5</span>Theme</div>
+      <div class="sec-label"><span class="n">6</span>Theme</div>
       <div class="chips" id="themeChips">
         <button class="chip theme-chip active" data-theme="modern">Modern</button>
         <button class="chip theme-chip" data-theme="minimal">Minimal</button>
@@ -470,21 +574,9 @@ input,select,textarea{font-family:inherit}
   <!-- ===== CENTER STAGE ===== -->
   <div class="stage-wrap">
 
-    <!-- Platform size picker -->
+    <!-- Platform size picker (options populated from PLATFORMS in JS) -->
     <div class="platform-bar">
-      <select id="platformSelect">
-        <option value="ig_post"    data-w="1080" data-h="1080">Instagram Post · 1080×1080</option>
-        <option value="ig_portrait"data-w="1080" data-h="1350">Instagram Portrait · 1080×1350</option>
-        <option value="ig_story"   data-w="1080" data-h="1920">Instagram Story · 1080×1920</option>
-        <option value="fb_post"    data-w="1200" data-h="630" >Facebook Post · 1200×630</option>
-        <option value="fb_story"   data-w="1080" data-h="1920">Facebook Story · 1080×1920</option>
-        <option value="li_post"    data-w="1200" data-h="1200">LinkedIn Post · 1200×1200</option>
-        <option value="li_banner"  data-w="1584" data-h="396" >LinkedIn Banner · 1584×396</option>
-        <option value="pin"        data-w="1000" data-h="1500">Pinterest Pin · 1000×1500</option>
-        <option value="x_post"     data-w="1600" data-h="900" >X Post · 1600×900</option>
-        <option value="yt_thumb"   data-w="1280" data-h="720" >YouTube Thumbnail · 1280×720</option>
-        <option value="wa_status"  data-w="1080" data-h="1920">WhatsApp Status · 1080×1920</option>
-      </select>
+      <select id="platformSelect"></select>
     </div>
 
     <!-- Canvas stage -->
@@ -499,9 +591,10 @@ input,select,textarea{font-family:inherit}
 
     <div class="stage-dims" id="stageDims">1080 × 1080 px</div>
 
-    <!-- Bottom export button -->
+    <!-- Bottom export buttons -->
     <div class="stage-bar-bottom">
       <button class="btn-export" id="btnExport">⬇&nbsp; Download</button>
+      <button class="btn-export" id="btnGenerateAll" style="background:var(--ink)">⚡&nbsp; Generate All Platforms</button>
     </div>
   </div><!-- /stage-wrap -->
 
@@ -574,6 +667,10 @@ input,select,textarea{font-family:inherit}
             <div class="swatch" data-color="#d4af37" style="background:#d4af37" title="Gold"></div>
             <div class="swatch" data-color="#e63946" style="background:#e63946" title="Crimson"></div>
           </div>
+          <div id="extractedSwatchGroup" style="display:none">
+            <div class="swatch-group-label">✨ Picked up from your logo</div>
+            <div class="swatches" id="extractedSwatches"></div>
+          </div>
         </div>
         <div class="field">
           <label>Phone number</label>
@@ -609,6 +706,23 @@ input,select,textarea{font-family:inherit}
         <button class="btn-export" id="btnExport2" style="width:100%;justify-content:center;margin-top:14px">
           ⬇ Download content
         </button>
+
+        <div class="field" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+          <label>⚡ Generate for every platform</label>
+          <div class="batch-platlist" id="batchPlatList"><!-- populated by JS --></div>
+          <div class="batch-actions">
+            <button id="batchSelectAll">Select all</button>
+            <button id="batchSelectNone">Select none</button>
+          </div>
+          <button class="btn-export" id="btnBatchGo" style="width:100%;justify-content:center;background:var(--ink)">
+            📦 Generate &amp; download ZIP
+          </button>
+          <div class="batch-progress" id="batchProgress">
+            <div class="bp-label"><span id="bpLabelText">Working…</span><span id="bpLabelPct">0%</span></div>
+            <div class="bp-bar"><div class="bp-fill" id="bpFill"></div></div>
+          </div>
+        </div>
+
         <div style="margin-top:12px;font-size:11px;color:#aaa8b6;text-align:center;line-height:1.5">
           All processing happens in your browser.<br>No files are uploaded to any server.
         </div>
@@ -640,819 +754,1321 @@ input,select,textarea{font-family:inherit}
 
 <script>
 
+'use strict';
+
 /* ============================================================
-   POSTFORGE — APP ENGINE (FIXED)
+   POSTFORGE — APP ENGINE v3
+   Consolidated from index.html + app.js, extended with:
+   multi-platform batch export (image + video), a Customer
+   Review content type, classical (non-AI) background removal,
+   and automatic brand-color extraction from an uploaded logo.
    ============================================================ */
 
-/* ---------- STATE ---------- */
-const state = {
-  media: null,
-  logo: null,
-  platform: {w:1080, h:1080, key:'ig_post'},
-  theme: 'modern',
-  badge: '',
-  headline: 'Weekend Special',
-  subheadline: 'Limited time only',
-  price: '20% OFF',
-  cta: 'Shop Now',
-  contact: '',
-  logoPos: 'tr',
-  logoSize: 'm',
-  logoMargin: 24,
-  brandColor: '#ff6b4a',
-  layers: {media:true, logo:true, headline:true, price:true, cta:true, badge:true},
-  quality: 1,
-  format: 'png',
+/* ---------------------------------------------------------------
+   PLATFORM CONFIG — single source of truth for every dimension
+   picker, the batch checklist, and exported filenames. Update
+   this table if a platform changes its recommended size.
+   --------------------------------------------------------------- */
+const PLATFORMS = {
+  ig_post:    { label:'Instagram Post',        w:1080, h:1080 },
+  ig_portrait:{ label:'Instagram Portrait',    w:1080, h:1350 },
+  ig_story:   { label:'Instagram Story/Reels', w:1080, h:1920 },
+  fb_post:    { label:'Facebook Post',         w:1080, h:1080 },
+  fb_story:   { label:'Facebook Story',        w:1080, h:1920 },
+  fb_cover:   { label:'Facebook Cover',        w:851,  h:315  },
+  li_post:    { label:'LinkedIn Post',         w:1080, h:1350 },
+  li_banner:  { label:'LinkedIn Banner',       w:1584, h:396  },
+  pin:        { label:'Pinterest Pin',         w:1000, h:1500 },
+  x_post:     { label:'X (Twitter) Post',      w:1080, h:1080 },
+  tiktok:     { label:'TikTok',                w:1080, h:1920 },
+  yt_thumb:   { label:'YouTube Thumbnail',     w:1280, h:720  },
+  yt_shorts:  { label:'YouTube Shorts',        w:1080, h:1920 },
+  wa_status:  { label:'WhatsApp Status',       w:1080, h:1920 },
 };
 
-/* ---------- DOM ---------- */
+/* ---------------------------------------------------------------
+   THEMES — overlay type, font, colours, CTA style per look
+   --------------------------------------------------------------- */
+const THEMES = {
+  modern:  { bg:'#1a1a2e', accent:'#ff6b4a', textMain:'#ffffff', textSub:'rgba(255,255,255,.78)',
+             font:'Space Grotesk', ctaStyle:'pill',      overlay:'gradient',        priceStyle:'accent' },
+  minimal: { bg:'#f7f5f1', accent:'#1a1a2e', textMain:'#1a1a2e', textSub:'rgba(26,26,46,.65)',
+             font:'Inter',         ctaStyle:'outline',    overlay:'soft-white',      priceStyle:'dark'   },
+  luxury:  { bg:'#0d0d0d', accent:'#d4af37', textMain:'#f5f0e6', textSub:'rgba(245,240,230,.6)',
+             font:'Space Grotesk', ctaStyle:'underline',  overlay:'dark',            priceStyle:'gold'   },
+  bold:    { bg:'#e63946', accent:'#ffd23f', textMain:'#ffffff', textSub:'rgba(255,255,255,.85)',
+             font:'Space Grotesk', ctaStyle:'block',      overlay:'gradient-strong', priceStyle:'yellow' },
+  premium: { bg:'#1a2e2a', accent:'#3ecf8e', textMain:'#ffffff', textSub:'rgba(255,255,255,.72)',
+             font:'Space Grotesk', ctaStyle:'pill',       overlay:'gradient',        priceStyle:'green'  },
+  festive: { bg:'#7a1d3d', accent:'#ffd23f', textMain:'#ffffff', textSub:'rgba(255,255,255,.8)',
+             font:'Space Grotesk', ctaStyle:'pill',       overlay:'gradient-strong', priceStyle:'yellow' }
+};
+
+/* ---------------------------------------------------------------
+   TEMPLATE LIBRARY — industry presets (promo) + testimonial
+   presets (review). type:'review' routes applyTemplate() to the
+   Customer Review fields instead of the promo fields.
+   --------------------------------------------------------------- */
+const TEMPLATES = {
+  restaurant: [
+    { name:"Today's Special",   headline:"Today's Special", sub:"Chef's recommendation",    price:"Rs. 199",   cta:"Order Now",   badge:"HOT",         theme:"modern"  },
+    { name:"Weekend Offer",     headline:"Weekend Feast",   sub:"Available Sat & Sun only", price:"20% OFF",   cta:"Book Today",  badge:"LIMITED OFFER",theme:"bold"    },
+    { name:"Lunch Combo",       headline:"Lunch Combo Deal",sub:"Mon–Fri 12–3 PM",          price:"Rs. 299",   cta:"Order Now",   badge:"BEST SELLER", theme:"premium" },
+    { name:"New Menu Item",     headline:"New On The Menu", sub:"Try it before it's gone",  price:"",          cta:"Explore Now", badge:"NEW",          theme:"minimal" }
+  ],
+  cafe: [
+    { name:"Coffee Promo",      headline:"Start Your Day Right",sub:"Freshly brewed daily", price:"20% OFF",   cta:"Order Now",   badge:"HOT",         theme:"modern"  },
+    { name:"Happy Hour",        headline:"Happy Hour",      sub:"2 PM – 5 PM every day",    price:"Buy 1 Get 1",cta:"Visit Store", badge:"LIMITED OFFER",theme:"festive" },
+    { name:"New Beverage",      headline:"New Sip Arrived", sub:"Try our latest creation",  price:"",          cta:"Explore Now", badge:"NEW",          theme:"minimal" }
+  ],
+  retail: [
+    { name:"Flash Sale",        headline:"Flash Sale",      sub:"Ends midnight tonight",     price:"50% OFF",   cta:"Shop Now",    badge:"50% OFF",     theme:"bold"    },
+    { name:"New Arrival",       headline:"Just Arrived",    sub:"Fresh styles in store",     price:"",          cta:"Explore Now", badge:"NEW",          theme:"minimal" },
+    { name:"Clearance Sale",    headline:"Clearance Sale",  sub:"While stocks last",         price:"Up to 70% OFF",cta:"Shop Now", badge:"SALE",         theme:"festive" }
+  ],
+  clothing: [
+    { name:"New Collection",    headline:"New Collection",  sub:"Drop 2025",                 price:"",          cta:"Explore Now", badge:"NEW",          theme:"luxury"  },
+    { name:"Flat Discount",     headline:"Flat 30% Off",    sub:"All clothing this week",    price:"30% OFF",   cta:"Shop Now",    badge:"SALE",         theme:"bold"    },
+    { name:"Festive Collection",headline:"Festive Picks",   sub:"Dress for the season",      price:"",          cta:"Shop Now",    badge:"HOT",          theme:"festive" }
+  ],
+  salon: [
+    { name:"Bridal Package",    headline:"Bridal Package",  sub:"Complete bridal makeover",  price:"Book Now",  cta:"Book Today",  badge:"LIMITED OFFER",theme:"luxury"  },
+    { name:"Hair Treatment",    headline:"Hair Treatment",  sub:"Nourish & restore shine",   price:"20% OFF",   cta:"Book Today",  badge:"HOT",          theme:"premium" },
+    { name:"Beauty Package",    headline:"Beauty Special",  sub:"Pamper yourself today",     price:"Rs. 999",   cta:"Reserve Now", badge:"NEW",          theme:"modern"  }
+  ],
+  service: [
+    { name:"Special Offer",     headline:"Special Offer",   sub:"For new customers",         price:"20% OFF",   cta:"Get Quote",   badge:"LIMITED OFFER",theme:"modern"  },
+    { name:"Book Appointment",  headline:"Book Now",        sub:"Limited slots available",   price:"",          cta:"Book Today",  badge:"",             theme:"minimal" },
+    { name:"Seasonal Promo",    headline:"Season Special",  sub:"Offer ends soon",           price:"",          cta:"Call Now",    badge:"HOT",          theme:"bold"    }
+  ],
+  festival: [
+    { name:"New Year",          headline:"Happy New Year!", sub:"Wishing you joy & success", price:"",          cta:"Shop Now",    badge:"",             theme:"festive" },
+    { name:"Dashain",           headline:"Shubha Dashain", sub:"Celebrating togetherness",   price:"30% OFF",   cta:"Shop Now",    badge:"SALE",         theme:"festive" },
+    { name:"Tihar",             headline:"Shubha Tihar",   sub:"Light up your celebrations", price:"",          cta:"Shop Now",    badge:"HOT",          theme:"festive" },
+    { name:"Valentine's Day",   headline:"Share the Love", sub:"For someone special",        price:"",          cta:"Shop Now",    badge:"HOT",          theme:"bold"    },
+    { name:"Christmas",         headline:"Merry Christmas",sub:"Season's greetings",         price:"",          cta:"Shop Now",    badge:"",             theme:"festive" }
+  ],
+  testimonial: [
+    { type:'review', name:"5-Star Rave",   stars:5, quote:"Best food in town, we come back every week!",              reviewer:"Sarah M.",  theme:"modern"  },
+    { type:'review', name:"Quick Thanks",  stars:5, quote:"Fast service and super friendly staff. Highly recommend!", reviewer:"Rajesh K.", theme:"minimal" },
+    { type:'review', name:"Product Love",  stars:5, quote:"Exactly what I needed — great quality for the price.",     reviewer:"Priya S.",  theme:"premium" },
+    { type:'review', name:"Loyal Customer",stars:4, quote:"Been coming here for years, never disappoints.",           reviewer:"David L.",  theme:"luxury"  }
+  ]
+};
+
+/* ---------------------------------------------------------------
+   STATE — single source of truth for the canvas render
+   --------------------------------------------------------------- */
+const state = {
+  contentType: 'promo',       // 'promo' | 'review'
+  platformKey: 'ig_post',
+  platformW:   1080,
+  platformH:   1080,
+
+  mediaSrcEl:   null,         // original <img> or <video> element (never mutated)
+  mediaProcessed: null,       // background-removed <canvas>, or null
+  mediaIsVideo: false,
+  bgRemoved:    false,
+
+  logoImg:     null,
+  logoPos:     'tr',
+  logoSize:    'm',
+  logoMargin:  24,
+
+  headline:    'Weekend Special',
+  subheadline: 'Limited time only',
+  price:       '20% OFF',
+  cta:         'Shop Now',
+  badge:       '',
+
+  reviewName:  '',
+  reviewStars: 5,
+  reviewQuote: '',
+
+  theme:       'modern',
+  brandColor:  '#ff6b4a',
+  contact:     '',
+  layerVis:    { media:true, logo:true, headline:true, price:true, cta:true, badge:true }
+};
+
 const $ = id => document.getElementById(id);
-const canvas = $('canvas');
-const ctx = canvas.getContext('2d');
-let renderScheduled = false;
-let mediaRecorder = null;
-let recordedChunks = [];
-let isRecording = false;
 
-/* ---------- UTILS ---------- */
-function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
-function showToast(msg){
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2200);
+/* ---------------------------------------------------------------
+   CANVAS REFS
+   --------------------------------------------------------------- */
+const canvas    = $('canvas');
+const stageShell = $('stageShell');
+const stageEmptyHint = $('stageEmptyHint');
+const stageDims = $('stageDims');
+
+/* ---------------------------------------------------------------
+   SMALL DRAWING HELPERS
+   --------------------------------------------------------------- */
+function roundRectPath(ctx, x, y, w, h, r){
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y,     x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x,     y + h, r);
+  ctx.arcTo(x,     y + h, x,     y,     r);
+  ctx.arcTo(x,     y,     x + w, y,     r);
+  ctx.closePath();
 }
 
-/* ---------- DRAWING (accepts optional target context) ---------- */
-function draw(targetCtx, targetW, targetH){
-  const c = targetCtx || ctx;
-  const w = targetW || state.platform.w;
-  const h = targetH || state.platform.h;
-
-  // Ensure live canvas matches platform dimensions
-  if(!targetCtx){
-    if(canvas.width !== w) canvas.width = w;
-    if(canvas.height !== h) canvas.height = h;
-  }
-
-  c.clearRect(0,0,w,h);
-  c.fillStyle = '#1a1a2e';
-  c.fillRect(0,0,w,h);
-
-  // 1. MEDIA
-  if(state.layers.media && state.media){
-    if(state.media.type === 'video' && state.media.videoEl && state.media.videoEl.readyState >= 2){
-      const v = state.media.videoEl;
-      const f = fitCover(v.videoWidth, v.videoHeight, w, h);
-      c.drawImage(v, f.x, f.y, f.w, f.h);
-    } else if(state.media.type === 'image' && state.media.imgEl){
-      const img = state.media.imgEl;
-      const f = fitCover(img.naturalWidth||img.width, img.naturalHeight||img.height, w, h);
-      c.drawImage(img, f.x, f.y, f.w, f.h);
-    }
-  } else {
-    c.fillStyle = '#f0f0f0';
-    c.fillRect(0,0,w,h);
-    c.fillStyle = '#e0e0e0';
-    for(let i=0;i<w;i+=40) for(let j=0;j<h;j+=40) c.fillRect(i,j,1,1);
-  }
-
-  // 2. OVERLAY
-  drawThemeOverlay(c, w, h);
-  if(state.layers.badge && state.badge) drawBadge(c, w, h);
-  if(state.layers.logo && state.logo) drawLogo(c, w, h);
-  drawTextBlock(c, w, h);
-  if(state.layers.cta && state.cta) drawCTA(c, w, h);
-  if(state.contact) drawContact(c, w, h);
+function elDims(el){
+  if (!el) return { w:0, h:0 };
+  if (typeof HTMLVideoElement !== 'undefined' && el instanceof HTMLVideoElement) return { w:el.videoWidth, h:el.videoHeight };
+  if (typeof HTMLCanvasElement !== 'undefined' && el instanceof HTMLCanvasElement) return { w:el.width, h:el.height };
+  return { w:el.naturalWidth || el.width || 0, h:el.naturalHeight || el.height || 0 };
 }
 
-function fitCover(sw, sh, dw, dh){
-  const s = Math.max(dw/sw, dh/sh);
-  const w = sw*s, h = sh*s;
-  return {x:(dw-w)/2, y:(dh-h)/2, w, h, s};
-}
-function fitContain(sw, sh, dw, dh){
-  const s = Math.min(dw/sw, dh/sh);
-  return {w:sw*s, h:sh*s, s};
-}
-
-function drawThemeOverlay(c, w, h){
-  const t = state.theme;
-  if(t === 'modern'){
-    const grad = c.createLinearGradient(0, h*0.45, 0, h);
-    grad.addColorStop(0, 'rgba(26,26,46,0)');
-    grad.addColorStop(1, 'rgba(26,26,46,0.82)');
-    c.fillStyle = grad; c.fillRect(0,0,w,h);
-  } else if(t === 'minimal'){
-    c.fillStyle = 'rgba(255,255,255,0.92)'; c.fillRect(0, h*0.55, w, h*0.45);
-  } else if(t === 'luxury'){
-    const grad = c.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, 'rgba(212,175,55,0.08)');
-    grad.addColorStop(1, 'rgba(26,26,46,0.75)');
-    c.fillStyle = grad; c.fillRect(0,0,w,h);
-    c.strokeStyle = 'rgba(212,175,55,0.4)'; c.lineWidth = 3;
-    c.strokeRect(20,20,w-40,h-40);
-  } else if(t === 'bold'){
-    c.fillStyle = 'rgba(26,26,46,0.55)'; c.fillRect(0,0,w,h);
-    const grad = c.createLinearGradient(0, h*0.6, 0, h);
-    grad.addColorStop(0, 'rgba(255,107,74,0)');
-    grad.addColorStop(1, 'rgba(255,107,74,0.35)');
-    c.fillStyle = grad; c.fillRect(0,0,w,h);
-  } else if(t === 'premium'){
-    const grad = c.createLinearGradient(0, h*0.35, 0, h);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.78)');
-    c.fillStyle = grad; c.fillRect(0,0,w,h);
-  } else if(t === 'festive'){
-    const grad = c.createLinearGradient(0, 0, w, h);
-    grad.addColorStop(0, 'rgba(255,107,74,0.15)');
-    grad.addColorStop(0.5, 'rgba(255,211,63,0.1)');
-    grad.addColorStop(1, 'rgba(29,122,95,0.15)');
-    c.fillStyle = grad; c.fillRect(0,0,w,h);
-    const grad2 = c.createLinearGradient(0, h*0.5, 0, h);
-    grad2.addColorStop(0, 'rgba(0,0,0,0)');
-    grad2.addColorStop(1, 'rgba(0,0,0,0.65)');
-    c.fillStyle = grad2; c.fillRect(0,0,w,h);
-  }
+/* Cover-fit: scale to fill target rect, centre-cropping the overflow */
+function drawImageCover(ctx, el, dx, dy, dw, dh){
+  const { w:sw, h:sh } = elDims(el);
+  if (!sw || !sh) return;
+  const imgR = sw / sh, boxR = dw / dh;
+  let sx, sy, scW, scH;
+  if (imgR > boxR){ scH = sh; scW = scH * boxR; sy = 0; sx = (sw - scW) / 2; }
+  else            { scW = sw; scH = scW / boxR; sx = 0; sy = (sh - scH) / 2; }
+  ctx.drawImage(el, sx, sy, scW, scH, dx, dy, dw, dh);
 }
 
-function drawBadge(c, w, h){
-  const badge = state.badge;
-  const pad = 28;
-  c.save();
-  c.font = 'bold ' + Math.max(18, w*0.024) + 'px "Space Grotesk", sans-serif';
-  const tw = c.measureText(badge).width;
-  const bw = tw + 36, bh = 44;
-  const x = w - pad - bw, y = pad;
-  c.fillStyle = state.brandColor;
-  roundRect(c, x, y, bw, bh, 8);
-  c.fill();
-  c.fillStyle = '#fff';
-  c.textAlign = 'center';
-  c.textBaseline = 'middle';
-  c.fillText(badge, x + bw/2, y + bh/2 + 1);
-  c.restore();
+/* Contain-fit: scale to fit fully inside maxW × maxH, no cropping */
+function fitContain(sw, sh, maxW, maxH){
+  const s = Math.min(maxW / sw, maxH / sh);
+  return { w: sw * s, h: sh * s, s };
 }
 
-function drawLogo(c, w, h){
-  if(!state.logo || !state.logo.imgEl) return;
-  const img = state.logo.imgEl;
-  const sizeMap = {s: w*0.10, m: w*0.14, l: w*0.20};
-  const sz = sizeMap[state.logoSize] || w*0.14;
-  const m = state.logoMargin * (w/1080);
-  const f = fitContain(img.naturalWidth||img.width, img.naturalHeight||img.height, sz, sz);
-  let x, y;
-  const pos = state.logoPos;
-  if(pos === 'tl'){ x = m; y = m; }
-  else if(pos === 'tr'){ x = w - m - f.w; y = m; }
-  else if(pos === 'bl'){ x = m; y = h - m - f.h; }
-  else { x = w - m - f.w; y = h - m - f.h; }
-  c.save();
-  c.fillStyle = 'rgba(255,255,255,0.92)';
-  roundRect(c, x-6, y-6, f.w+12, f.h+12, 6);
-  c.fill();
-  c.drawImage(img, x, y, f.w, f.h);
-  c.restore();
-}
-
-function drawTextBlock(c, w, h){
-  const t = state.theme;
-  const isLight = (t === 'minimal');
-  const textColor = isLight ? '#1a1a2e' : '#ffffff';
-  const accent = state.brandColor;
-  c.save();
-  const margin = w * 0.07;
-  const maxW = w - margin*2;
-  let y = h * (t === 'minimal' ? 0.62 : 0.58);
-
-  if(state.layers.headline && state.headline){
-    c.fillStyle = textColor;
-    c.textAlign = 'left';
-    c.textBaseline = 'top';
-    const fontSize = Math.max(32, w * 0.065);
-    c.font = '800 ' + fontSize + 'px "Space Grotesk", sans-serif';
-    const lines = wrapText(c, state.headline, maxW);
-    lines.forEach(line => { c.fillText(line, margin, y); y += fontSize * 1.15; });
-    y += fontSize * 0.15;
-  }
-  if(state.subheadline){
-    c.fillStyle = isLight ? '#6e6d80' : 'rgba(255,255,255,0.75)';
-    const fontSize = Math.max(18, w * 0.032);
-    c.font = '500 ' + fontSize + 'px "Inter", sans-serif';
-    c.fillText(state.subheadline, margin, y);
-    y += fontSize * 1.6;
-  }
-  if(state.layers.price && state.price){
-    c.fillStyle = accent;
-    const fontSize = Math.max(28, w * 0.055);
-    c.font = '700 ' + fontSize + 'px "Space Grotesk", sans-serif';
-    c.fillText(state.price, margin, y);
-    y += fontSize * 1.4;
-  }
-  c.restore();
-}
-
-function drawCTA(c, w, h){
-  const t = state.theme;
-  const isLight = (t === 'minimal');
-  const btnH = Math.max(44, w * 0.08);
-  const btnW = Math.max(160, w * 0.28);
-  const margin = w * 0.07;
-  const x = margin;
-  const y = h - margin - btnH;
-  c.save();
-  c.fillStyle = isLight ? state.brandColor : '#ffffff';
-  roundRect(c, x, y, btnW, btnH, btnH/2);
-  c.fill();
-  c.fillStyle = isLight ? '#ffffff' : '#1a1a2e';
-  c.font = '700 ' + Math.max(14, w*0.025) + 'px "Inter", sans-serif';
-  c.textAlign = 'center';
-  c.textBaseline = 'middle';
-  c.fillText(state.cta, x + btnW/2, y + btnH/2 + 1);
-  c.restore();
-}
-
-function drawContact(c, w, h){
-  const margin = w * 0.07;
-  c.save();
-  c.fillStyle = 'rgba(255,255,255,0.55)';
-  c.font = '500 ' + Math.max(11, w*0.018) + 'px "Inter", sans-serif';
-  c.textAlign = 'right';
-  c.textBaseline = 'bottom';
-  c.fillText(state.contact, w - margin, h - margin);
-  c.restore();
-}
-
-function roundRect(c, x, y, w, h, r){
-  const rr = Math.min(r, w/2, h/2);
-  c.beginPath();
-  c.moveTo(x+rr, y);
-  c.lineTo(x+w-rr, y);
-  c.quadraticCurveTo(x+w, y, x+w, y+rr);
-  c.lineTo(x+w, y+h-rr);
-  c.quadraticCurveTo(x+w, y+h, x+w-rr, y+h);
-  c.lineTo(x+rr, y+h);
-  c.quadraticCurveTo(x, y+h, x, y+h-rr);
-  c.lineTo(x, y+rr);
-  c.quadraticCurveTo(x, y, x+rr, y);
-  c.closePath();
-}
-
-function wrapText(c, text, maxW){
-  const words = text.split(' ');
+function wrapText(ctx, text, maxWidth){
+  const words = String(text).split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
-  for(const word of words){
+  for (const word of words){
     const test = line ? line + ' ' + word : word;
-    if(c.measureText(test).width > maxW && line){
+    if (ctx.measureText(test).width > maxWidth && line){
       lines.push(line); line = word;
     } else { line = test; }
   }
-  if(line) lines.push(line);
-  return lines.length ? lines : [text];
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
 }
 
-/* ---------- RENDER LOOP ---------- */
-function scheduleRender(){
-  if(renderScheduled) return;
-  renderScheduled = true;
-  requestAnimationFrame(()=>{ renderScheduled = false; draw(); });
+function fitText(ctx, text, { maxW, maxH, minSize=14, maxSize=120, family='Space Grotesk', weight=700, lineH=1.18 }){
+  let size = maxSize;
+  let lines = [text];
+  while (size >= minSize){
+    ctx.font = `${weight} ${size}px "${family}", sans-serif`;
+    lines = wrapText(ctx, text, maxW);
+    const totalH = lines.length * size * lineH;
+    const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    if (totalH <= maxH && widest <= maxW) break;
+    size = Math.max(minSize, size - 2);
+  }
+  return { size, lines, lh: size * lineH };
 }
 
+function drawWrapped(ctx, lines, x, y, lh, align='left'){
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  lines.forEach((line, i) => ctx.fillText(line, x, y + i * lh));
+}
+
+/* 5-point star, used by the review-card star rating */
+function drawStarShape(ctx, cx, cy, outerR, fillColor){
+  const innerR = outerR * 0.45;
+  const spikes = 5;
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+  ctx.beginPath();
+  ctx.moveTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+  for (let i = 0; i < spikes; i++){
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+  }
+  ctx.closePath();
+  ctx.fillStyle = fillColor;
+  ctx.fill();
+}
+function drawStars(ctx, x, y, r, count, onColor, offColor){
+  for (let i = 0; i < 5; i++){
+    drawStarShape(ctx, x + i * r * 2.5, y, r, i < count ? onColor : offColor);
+  }
+}
+
+/* ---------------------------------------------------------------
+   ACTIVE MEDIA — which element actually gets drawn
+   --------------------------------------------------------------- */
+function activeMediaEl(){
+  if (state.mediaIsVideo) return state.mediaSrcEl;
+  if (state.bgRemoved && state.mediaProcessed) return state.mediaProcessed;
+  return state.mediaSrcEl;
+}
+
+/* ---------------------------------------------------------------
+   LOGO LAYER — shared between the promo layout and the review card
+   --------------------------------------------------------------- */
+function logoBoxPx(canvasW, canvasH){
+  const base = Math.min(canvasW, canvasH);
+  return base * ({ s:0.09, m:0.14, l:0.21 }[state.logoSize] || 0.14);
+}
+function drawLogoLayer(ctx, w, h){
+  if (!state.logoImg || !state.layerVis.logo) return;
+  ctx.save();
+  const box   = logoBoxPx(w, h);
+  const ratio = state.logoImg.naturalWidth / state.logoImg.naturalHeight;
+  let lw = box, lh = box / ratio;
+  if (lh > box){ lh = box; lw = box * ratio; }
+  const margin = (state.logoMargin / 1080) * w;
+  let lx = state.logoPos.endsWith('l')  ? margin : w - margin - lw;
+  let ly = state.logoPos.startsWith('t') ? margin : h - margin - lh;
+  ctx.shadowColor = 'rgba(0,0,0,.3)';
+  ctx.shadowBlur  = 16;
+  ctx.shadowOffsetY = 3;
+  ctx.drawImage(state.logoImg, lx, ly, lw, lh);
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------
+   RENDER — PROMO POST LAYOUT
+   --------------------------------------------------------------- */
+function renderPromo(ctx, w, h){
+  const theme = THEMES[state.theme] || THEMES.modern;
+  const media = activeMediaEl();
+  const cutout = state.bgRemoved && !state.mediaIsVideo && media;
+
+  /* --- Background --- */
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  if (media && state.layerVis.media){
+    if (cutout){
+      /* Cut-out product shot centred on the flat theme colour, not cropped full-bleed */
+      const pad = Math.min(w, h) * 0.13;
+      const { w:sw, h:sh } = elDims(media);
+      const fit = fitContain(sw, sh, w - pad * 2, h - pad * 2 * 0.82);
+      const dx = (w - fit.w) / 2, dy = (h - fit.h) / 2 - h * 0.045;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = w * 0.03; ctx.shadowOffsetY = w * 0.01;
+      ctx.drawImage(media, 0, 0, sw, sh, dx, dy, fit.w, fit.h);
+      ctx.restore();
+    } else {
+      drawImageCover(ctx, media, 0, 0, w, h);
+    }
+  }
+
+  /* --- Scrim for text legibility (skipped for clean cut-out shots) --- */
+  if (media && !cutout){
+    const grad = ctx.createLinearGradient(0, h * 0.35, 0, h);
+    const overlayMap = {
+      'gradient':        ['rgba(0,0,0,0)', 'rgba(0,0,0,.72)'],
+      'gradient-strong': ['rgba(0,0,0,0)', 'rgba(0,0,0,.86)'],
+      'dark':            ['rgba(0,0,0,.12)','rgba(0,0,0,.78)'],
+      'soft-white':      ['rgba(255,255,255,0)','rgba(255,255,255,.92)']
+    };
+    const [c0, c1] = overlayMap[theme.overlay] || overlayMap['gradient'];
+    grad.addColorStop(0, c0); grad.addColorStop(1, c1);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, h * 0.35, w, h * 0.65);
+  }
+
+  const pad = w * 0.065;
+  const contentW = w - pad * 2;
+
+  /* --- Badge --- */
+  if (state.badge && state.layerVis.badge){
+    ctx.save();
+    const bFontSize = Math.round(Math.max(18, w * 0.028));
+    ctx.font = `800 ${bFontSize}px "Space Grotesk", sans-serif`;
+    const bPadX = w * 0.022, bPadY = w * 0.015;
+    const bTextW = ctx.measureText(state.badge).width;
+    const bW = bTextW + bPadX * 2, bH = bFontSize + bPadY * 2;
+    const bx = pad * 0.7, by = pad * 0.7;
+    ctx.fillStyle = theme.accent;
+    roundRectPath(ctx, bx, by, bW, bH, bH / 2); ctx.fill();
+    ctx.fillStyle = '#1a1a2e';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(state.badge, bx + bPadX, by + bH / 2 + 1);
+    ctx.restore();
+  }
+
+  /* --- Text block (bottom-up layout) --- */
+  const bottomPad  = h * 0.075;
+  const ctaH       = w * 0.068;
+  const ctaFontSz  = Math.round(Math.max(14, w * 0.027));
+  const priceFontSz= Math.round(Math.max(18, w * 0.048));
+  const subFontSz  = Math.round(Math.max(13, w * 0.028));
+  const ctaRowY    = h - bottomPad - ctaH;
+  const priceY     = ctaRowY - priceFontSz * 1.3;
+  const subY       = priceY  - subFontSz   * 1.45;
+
+  const headlineMaxH = subY - pad * 0.5 - h * 0.12;
+  const headlineFit  = fitText(ctx, state.headline || ' ', {
+    maxW: contentW, maxH: Math.max(headlineMaxH, 60),
+    minSize: Math.max(20, w * 0.024), maxSize: w * 0.088,
+    family: theme.font, weight: 800, lineH: 1.12
+  });
+  const headlineTopY = subY - headlineFit.lines.length * headlineFit.lh - h * 0.018;
+
+  if (state.headline && state.layerVis.headline){
+    ctx.save();
+    ctx.font = `800 ${headlineFit.size}px "${theme.font}", sans-serif`;
+    ctx.fillStyle = theme.textMain;
+    ctx.shadowColor = (media && !cutout) ? 'rgba(0,0,0,.35)' : 'transparent';
+    ctx.shadowBlur  = 12;
+    drawWrapped(ctx, headlineFit.lines, pad, headlineTopY + headlineFit.size, headlineFit.lh, 'left');
+    ctx.restore();
+  }
+  if (state.subheadline){
+    ctx.save();
+    ctx.font = `500 ${subFontSz}px "Inter", sans-serif`;
+    ctx.fillStyle = theme.textSub;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(state.subheadline, pad, subY);
+    ctx.restore();
+  }
+  if (state.price && state.layerVis.price){
+    ctx.save();
+    ctx.font = `700 ${priceFontSz}px "${theme.font}", sans-serif`;
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = (media && !cutout) ? 'rgba(0,0,0,.25)' : 'transparent';
+    ctx.shadowBlur  = 8;
+    ctx.fillText(state.price, pad, priceY);
+    ctx.restore();
+  }
+  if (state.cta && state.layerVis.cta){
+    ctx.save();
+    ctx.font = `700 ${ctaFontSz}px "${theme.font}", sans-serif`;
+    const label   = state.cta + '  →';
+    const labelW  = ctx.measureText(label).width;
+    const btnPadX = w * 0.045;
+    const btnW    = labelW + btnPadX * 2;
+    const btnX    = pad, btnY = ctaRowY;
+    ctx.shadowColor = 'transparent';
+    switch (theme.ctaStyle){
+      case 'outline':
+        ctx.strokeStyle = theme.accent; ctx.lineWidth = Math.max(2, w * 0.002);
+        roundRectPath(ctx, btnX, btnY, btnW, ctaH, ctaH / 2); ctx.stroke();
+        ctx.fillStyle = theme.accent;
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+        ctx.fillText(label, btnX + btnW / 2, btnY + ctaH / 2 + 1);
+        break;
+      case 'underline':
+        ctx.fillStyle = theme.accent;
+        ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+        ctx.fillText(label, btnX, btnY + ctaH * 0.68);
+        ctx.fillRect(btnX, btnY + ctaH * 0.8, labelW, Math.max(2, w * 0.002));
+        break;
+      case 'block':
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(btnX - w*0.003, btnY - w*0.006, btnW + w*0.006, ctaH + w*0.012);
+        ctx.fillStyle = theme.accent;
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+        ctx.fillText(label, btnX + btnW / 2, btnY + ctaH / 2 + 1);
+        break;
+      default:
+        ctx.fillStyle = theme.accent;
+        roundRectPath(ctx, btnX, btnY, btnW, ctaH, ctaH / 2); ctx.fill();
+        ctx.fillStyle = '#1a1a2e';
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+        ctx.fillText(label, btnX + btnW / 2, btnY + ctaH / 2 + 1);
+    }
+    ctx.restore();
+  }
+  if (state.contact){
+    ctx.save();
+    const cFontSz = Math.round(Math.max(12, w * 0.02));
+    ctx.font = `500 ${cFontSz}px "Inter", sans-serif`;
+    ctx.fillStyle = theme.textSub;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(state.contact, w - pad, h - pad * 0.45);
+    ctx.restore();
+  }
+
+  drawLogoLayer(ctx, w, h);
+}
+
+/* ---------------------------------------------------------------
+   RENDER — CUSTOMER REVIEW / TESTIMONIAL LAYOUT
+   --------------------------------------------------------------- */
+function renderReview(ctx, w, h){
+  const theme = THEMES[state.theme] || THEMES.modern;
+  const media = activeMediaEl();
+
+  ctx.fillStyle = theme.bg;
+  ctx.fillRect(0, 0, w, h);
+
+  if (media && state.layerVis.media){
+    drawImageCover(ctx, media, 0, 0, w, h);
+    ctx.fillStyle = 'rgba(10,10,18,.5)';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  const pad = w * 0.09;
+  const contentW = w - pad * 2;
+  let y = h * 0.15;
+
+  /* Big decorative quote mark */
+  ctx.save();
+  ctx.fillStyle = theme.accent;
+  ctx.font = `800 ${Math.round(w * 0.15)}px Georgia, "Times New Roman", serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('“', pad - w * 0.012, y - h * 0.05);
+  ctx.restore();
+  y += w * 0.075;
+
+  /* Stars */
+  const starR = Math.max(11, w * 0.02);
+  drawStars(ctx, pad + starR, y, starR, state.reviewStars, theme.accent, 'rgba(255,255,255,.28)');
+  y += starR * 2.6;
+
+  /* Quote (auto-fit) */
+  const quoteMaxH = h * 0.4;
+  const qFit = fitText(ctx, state.reviewQuote || ' ', {
+    maxW: contentW, maxH: quoteMaxH,
+    minSize: Math.max(16, w * 0.026), maxSize: w * 0.05,
+    family: theme.font, weight: 700, lineH: 1.32
+  });
+  ctx.save();
+  ctx.font = `700 ${qFit.size}px "${theme.font}", sans-serif`;
+  ctx.fillStyle = theme.textMain;
+  drawWrapped(ctx, qFit.lines, pad, y + qFit.size, qFit.lh, 'left');
+  ctx.restore();
+  y += qFit.lines.length * qFit.lh + h * 0.035;
+
+  /* Reviewer name */
+  if (state.reviewName){
+    ctx.save();
+    const nSize = Math.max(15, w * 0.028);
+    ctx.font = `700 ${nSize}px "${theme.font}", sans-serif`;
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('— ' + state.reviewName, pad, y + nSize);
+    ctx.restore();
+    y += Math.max(15, w * 0.028) * 1.9;
+  }
+
+  /* Verified-customer pill */
+  ctx.save();
+  const vLabel = '✓ Verified Customer';
+  ctx.font = `700 ${Math.max(11, w * 0.017)}px "Inter", sans-serif`;
+  const vTextW = ctx.measureText(vLabel).width;
+  const vPadX = w * 0.022;
+  const vW = vTextW + vPadX * 2, vH = Math.max(24, w * 0.042);
+  ctx.fillStyle = 'rgba(255,255,255,.15)';
+  roundRectPath(ctx, pad, y, vW, vH, vH / 2); ctx.fill();
+  ctx.fillStyle = theme.textMain;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(vLabel, pad + vW / 2, y + vH / 2 + 1);
+  ctx.restore();
+
+  drawLogoLayer(ctx, w, h);
+}
+
+/* ---------------------------------------------------------------
+   RENDER DISPATCH — used for both the live preview AND every
+   offscreen export (single or batch), always given explicit w/h
+   so exports never depend on the on-screen canvas's own size.
+   --------------------------------------------------------------- */
+function renderCore(ctx, w, h){
+  ctx.clearRect(0, 0, w, h);
+  // High-quality resampling for every resize this app ever does — the live
+  // preview AND every exported/batch canvas all funnel through here, so
+  // setting it once here covers all of them. Browsers default new 2D
+  // contexts to imageSmoothingQuality:'low', which visibly softens/aliases
+  // a photo when it's cover-cropped and scaled down to a platform's post
+  // dimensions; 'high' uses a proper multi-sample resampling filter instead.
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  if (state.contentType === 'review') renderReview(ctx, w, h);
+  else renderPromo(ctx, w, h);
+}
+function render(){
+  renderCore(canvas.getContext('2d'), canvas.width, canvas.height);
+  stageEmptyHint.style.display = activeMediaEl() ? 'none' : 'flex';
+}
+
+/* ---------------------------------------------------------------
+   BACKGROUND REMOVAL — classical, no AI/ML service.
+   Samples the four image corners for the background colour, then
+   makes every pixel within `tolerance` of that colour transparent,
+   with a soft feather band for anti-aliased edges. Works best on
+   a plain / solid-colour backdrop (product & food photography).
+   --------------------------------------------------------------- */
+function removeBackgroundCanvas(sourceEl, tolerance = 42){
+  const { w:sw, h:sh } = elDims(sourceEl);
+  if (!sw || !sh) return null;
+
+  const maxSide = 1400;
+  const scale = Math.min(1, maxSide / Math.max(sw, sh));
+  const w = Math.max(1, Math.round(sw * scale));
+  const h = Math.max(1, Math.round(sh * scale));
+
+  const tmp = document.createElement('canvas');
+  tmp.width = w; tmp.height = h;
+  const tctx = tmp.getContext('2d', { willReadFrequently:true });
+  tctx.drawImage(sourceEl, 0, 0, w, h);
+
+  const imgData = tctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+
+  function samplePatch(px, py){
+    let r=0,g=0,b=0,n=0;
+    for (let yy=py; yy<py+8 && yy<h; yy++){
+      for (let xx=px; xx<px+8 && xx<w; xx++){
+        const i=(yy*w+xx)*4;
+        r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++;
+      }
+    }
+    return n ? [r/n, g/n, b/n] : [255,255,255];
+  }
+  const patches = [samplePatch(0,0), samplePatch(w-8,0), samplePatch(0,h-8), samplePatch(w-8,h-8)];
+  const bg = [0,1,2].map(c => patches.reduce((s,p)=>s+p[c],0) / 4);
+
+  const soft = tolerance * 0.6;
+  for (let i=0; i<d.length; i+=4){
+    const dr = d[i]-bg[0], dg = d[i+1]-bg[1], db = d[i+2]-bg[2];
+    const dist = Math.sqrt(dr*dr + dg*dg + db*db);
+    if (dist < tolerance) d[i+3] = 0;
+    else if (dist < tolerance + soft) d[i+3] = Math.round(((dist - tolerance) / soft) * 255);
+  }
+  tctx.putImageData(imgData, 0, 0);
+  return tmp;
+}
+
+/* ---------------------------------------------------------------
+   BRAND-COLOUR EXTRACTION — classical colour quantisation on the
+   uploaded logo's pixels (bucket + frequency count). No AI/ML.
+   --------------------------------------------------------------- */
+function extractPalette(sourceEl, count = 3){
+  const { w:sw, h:sh } = elDims(sourceEl);
+  if (!sw || !sh) return [];
+  const size = 48;
+  const tmp = document.createElement('canvas');
+  tmp.width = size; tmp.height = size;
+  const tctx = tmp.getContext('2d', { willReadFrequently:true });
+  tctx.drawImage(sourceEl, 0, 0, size, size);
+  const data = tctx.getImageData(0, 0, size, size).data;
+
+  const buckets = new Map();
+  for (let i=0; i<data.length; i+=4){
+    const a = data[i+3]; if (a < 128) continue;
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    if (max > 240 && min > 225) continue;   // near-white
+    if (max < 28) continue;                  // near-black
+    if (max - min < 14) continue;             // greyscale-ish
+    const key = Math.round(r/24)+','+Math.round(g/24)+','+Math.round(b/24);
+    const cur = buckets.get(key) || { count:0, r:0, g:0, b:0 };
+    cur.count++; cur.r += r; cur.g += g; cur.b += b;
+    buckets.set(key, cur);
+  }
+  const sorted = [...buckets.values()].sort((a,b) => b.count - a.count);
+  const picked = [];
+  for (const c of sorted){
+    const avg = [Math.round(c.r/c.count), Math.round(c.g/c.count), Math.round(c.b/c.count)];
+    const tooClose = picked.some(p => {
+      const dr=p[0]-avg[0], dg=p[1]-avg[1], db=p[2]-avg[2];
+      return Math.sqrt(dr*dr+dg*dg+db*db) < 40;
+    });
+    if (!tooClose) picked.push(avg);
+    if (picked.length >= count) break;
+  }
+  return picked.map(([r,g,b]) => '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join(''));
+}
+
+/* ---------------------------------------------------------------
+   STAGE SIZE / PLATFORM SWITCHING
+   --------------------------------------------------------------- */
+function fitStageShell(){
+  const wrap = document.querySelector('.stage-wrap');
+  const w = state.platformW, h = state.platformH;
+  const maxW = wrap.clientWidth - 56, maxH = wrap.clientHeight - 120;
+  let cw = maxW, ch = cw * h / w;
+  if (ch > maxH){ ch = maxH; cw = ch * w / h; }
+  stageShell.style.width  = cw + 'px';
+  stageShell.style.height = ch + 'px';
+}
+function applyPlatform(key){
+  const p = PLATFORMS[key]; if (!p) return;
+  state.platformKey = key; state.platformW = p.w; state.platformH = p.h;
+  canvas.width = p.w; canvas.height = p.h;
+  fitStageShell();
+  stageDims.textContent = `${p.w} × ${p.h} px`;
+  render();
+}
+
+/* ---------------------------------------------------------------
+   TOAST
+   --------------------------------------------------------------- */
+let _toastTimer;
+function showToast(msg, duration = 2600){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none'; a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 150);
+}
+
+/* ---------------------------------------------------------------
+   CONTENT TYPE — Promo Post vs Customer Review
+   --------------------------------------------------------------- */
+function setContentType(type){
+  state.contentType = type;
+  document.querySelectorAll('#ctToggle .ct-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  $('secOffer').style.display  = type === 'promo'  ? '' : 'none';
+  $('secReview').style.display = type === 'review' ? '' : 'none';
+  $('secBadge').style.display  = type === 'promo'  ? '' : 'none';
+  $('mediaSecLabel').textContent = type === 'review' ? 'Customer photo or video' : 'Photo or video';
+  $('dzMediaText').textContent   = type === 'review' ? 'Drop customer photo or video' : 'Drop image or video here';
+  render();
+}
+function setStars(n){
+  state.reviewStars = n;
+  document.querySelectorAll('#starRow .star-btn').forEach(b => {
+    b.classList.toggle('on', parseInt(b.dataset.star, 10) <= n);
+  });
+}
+
+/* ---------------------------------------------------------------
+   VIDEO PREVIEW LOOP
+   --------------------------------------------------------------- */
 let videoLoopId = null;
 function startVideoLoop(){
-  if(videoLoopId) cancelAnimationFrame(videoLoopId);
+  if (videoLoopId) cancelAnimationFrame(videoLoopId);
   function loop(){
-    if(state.media && state.media.type === 'video') scheduleRender();
+    if (state.mediaIsVideo) render();
     videoLoopId = requestAnimationFrame(loop);
   }
   loop();
 }
 
-/* ---------- FILE UPLOAD ---------- */
-function handleFile(file, type){
-  if(!file) return;
+/* ---------------------------------------------------------------
+   UPLOAD — media (photo/video) + logo
+   --------------------------------------------------------------- */
+function setupDZ(zoneId, inputId, onFile){
+  const zone = $(zoneId), input = $(inputId);
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('over');
+    if (e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', e => { if (e.target.files[0]) onFile(e.target.files[0]); });
+}
+
+function handleMediaFile(file){
   const url = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith('video/');
 
-  if(type === 'media'){
-    const isVideo = file.type.startsWith('video/');
-    if(isVideo){
-      const video = document.createElement('video');
-      video.src = url;
-      video.setAttribute('muted', '');
-      video.setAttribute('playsinline', '');
-      video.setAttribute('loop', '');
-      video.setAttribute('autoplay', '');
-      video.playsInline = true;
-      video.volume = 1.0;
-      video.muted = true;
+  state.bgRemoved = false;
+  state.mediaProcessed = null;
+  $('bgToggle').checked = false;
 
-      video.addEventListener('loadedmetadata', ()=>{
-        state.media = {file, type:'video', url, width:video.videoWidth, height:video.videoHeight, videoEl:video};
-        updateMediaThumb(file.name, video.videoWidth+'x'+video.videoHeight+' video');
-        $('stageEmptyHint').style.display = 'none';
-        video.play().catch(()=>{});
-        scheduleRender();
-        startVideoLoop();
-      });
-      video.addEventListener('error', ()=>{
-        showToast('Could not load video');
-      });
-      video.addEventListener('error', ()=> showToast('Could not load video'));
-    } else {
-      const img = new Image();
-      img.onload = ()=>{
-        state.media = {file, type:'image', url, width:img.naturalWidth, height:img.naturalHeight, imgEl:img};
-        updateMediaThumb(file.name, img.naturalWidth+'x'+img.naturalHeight+' image');
-        $('stageEmptyHint').style.display = 'none';
-        scheduleRender();
-      };
-      img.src = url;
-    }
-  } else if(type === 'logo'){
+  if (isVideo){
+    state.mediaIsVideo = true;
+    $('bgRow').style.display = 'none';
+    const video = document.createElement('video');
+    video.src = url; video.muted = true; video.loop = true; video.playsInline = true;
+    video.setAttribute('muted', ''); video.setAttribute('playsinline', ''); video.setAttribute('loop', '');
+    video.addEventListener('loadedmetadata', () => {
+      state.mediaSrcEl = video;
+      setMediaThumbVideo(file.name, video);
+      video.play().catch(() => {});
+      startVideoLoop();
+    });
+    video.addEventListener('error', () => showToast('Could not load that video'));
+  } else {
+    state.mediaIsVideo = false;
     const img = new Image();
-    img.onload = ()=>{
-      state.logo = {file, url, width:img.naturalWidth, height:img.naturalHeight, imgEl:img};
-      $('logoThumb').src = url;
-      $('logoName').textContent = file.name;
-      $('logoThumbRow').style.display = 'flex';
-      $('dzLogo').classList.add('done');
-      scheduleRender();
+    img.onload = () => {
+      state.mediaSrcEl = img;
+      $('bgRow').style.display = 'flex';
+      setMediaThumb(file.name, url, `${img.naturalWidth}×${img.naturalHeight}`);
+      // Cropping/scaling to fit a post's dimensions can only preserve quality
+      // when the source has enough pixels to begin with — canvas resizing
+      // can shrink a photo losslessly-looking (with the high-quality
+      // resampling above) but can't invent detail when it has to enlarge
+      // one. 1080px is the shortest side nearly every platform preset here
+      // needs, so warn once if the upload falls under that.
+      const shortSide = Math.min(img.naturalWidth, img.naturalHeight);
+      if (shortSide < 1080){
+        showToast(`Heads up: this photo is ${img.naturalWidth}×${img.naturalHeight} — under 1080px on its short side, so some platform sizes may look slightly soft. A higher-res photo will look sharper.`, 5000);
+      }
+      render();
     };
+    img.onerror = () => showToast('Could not load that image');
     img.src = url;
   }
 }
 
-function updateMediaThumb(name, dims){
+function setMediaThumb(name, src, dims){
+  $('mediaThumbRow').style.display = 'flex';
+  $('mediaThumb').src = src;
   $('mediaName').textContent = name;
   $('mediaDims').textContent = dims;
-  $('mediaThumbRow').style.display = 'flex';
   $('dzMedia').classList.add('done');
-  if(state.media && state.media.type === 'video'){
-    const v = state.media.videoEl;
-    const c = document.createElement('canvas');
-    c.width = 64; c.height = 64;
-    const cx = c.getContext('2d');
-    const drawThumb = ()=>{
-      if(v.readyState >= 2){
-        const f = fitContain(v.videoWidth, v.videoHeight, 64, 64);
-        cx.drawImage(v, (64-f.w)/2, (64-f.h)/2, f.w, f.h);
-        $('mediaThumb').src = c.toDataURL();
-      }
-    };
-    v.addEventListener('loadeddata', drawThumb);
-    setTimeout(drawThumb, 500);
-  } else if(state.media && state.media.imgEl){
-    $('mediaThumb').src = state.media.url;
-  }
+}
+function setMediaThumbVideo(name, video){
+  const draw = () => {
+    if (video.readyState < 2) { setTimeout(draw, 200); return; }
+    const tmp = document.createElement('canvas');
+    tmp.width = 64; tmp.height = 64;
+    const f = fitContain(video.videoWidth, video.videoHeight, 64, 64);
+    tmp.getContext('2d').drawImage(video, (64-f.w)/2, (64-f.h)/2, f.w, f.h);
+    setMediaThumb(name, tmp.toDataURL(), `${video.videoWidth}×${video.videoHeight} video`);
+  };
+  draw();
 }
 
-/* ---------- EXPORT ---------- */
-function doExport(){
-  const fmt = state.format;
+setupDZ('dzMedia', 'inputMedia', handleMediaFile);
+$('mediaRemove').addEventListener('click', () => {
+  state.mediaSrcEl = null; state.mediaProcessed = null; state.bgRemoved = false; state.mediaIsVideo = false;
+  $('mediaThumbRow').style.display = 'none';
+  $('dzMedia').classList.remove('done');
+  $('inputMedia').value = '';
+  $('bgRow').style.display = 'none';
+  $('bgToggle').checked = false;
+  render();
+});
 
-  if(fmt === 'mp4' || fmt === 'webm'){
-    exportVideo(fmt);
-    return;
-  }
+setupDZ('dzLogo', 'inputLogo', file => {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    state.logoImg = img;
+    $('logoThumb').src = url;
+    $('logoName').textContent = file.name;
+    $('logoThumbRow').style.display = 'flex';
+    $('dzLogo').classList.add('done');
+    try { localStorage.setItem('pf_logo', url); } catch(e){}
 
-  // Image export
-  const q = state.quality;
-  const {w, h} = state.platform;
-  const outW = w * q, outH = h * q;
+    const palette = extractPalette(img, 3);
+    if (palette.length){
+      state.extractedSwatches = palette;
+      const group = $('extractedSwatchGroup');
+      const wrap = $('extractedSwatches');
+      wrap.innerHTML = '';
+      palette.forEach(hex => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch extracted';
+        sw.style.background = hex;
+        sw.dataset.color = hex;
+        sw.title = hex;
+        wrap.appendChild(sw);
+      });
+      group.style.display = 'block';
+    }
+    render();
+  };
+  img.src = url;
+});
+$('logoRemove').addEventListener('click', () => {
+  state.logoImg = null;
+  $('logoThumbRow').style.display = 'none';
+  $('dzLogo').classList.remove('done');
+  $('inputLogo').value = '';
+  try { localStorage.removeItem('pf_logo'); } catch(e){}
+  render();
+});
 
-  const ec = document.createElement('canvas');
-  ec.width = outW; ec.height = outH;
-  const ex = ec.getContext('2d');
-
-  // Draw at full resolution using the dedicated draw function
-  draw(ex, outW, outH);
-
-  const mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
-  const ext = fmt === 'jpg' ? 'jpg' : 'png';
-
-  // Try toBlob first, fall back to toDataURL
-  if(ec.toBlob){
-    ec.toBlob(function(blob){
-      if(!blob){ showToast('Export failed'); return; }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-      showToast('Download started');
-    }, mime, 0.92);
+/* ---------------------------------------------------------------
+   BACKGROUND-REMOVAL TOGGLE
+   --------------------------------------------------------------- */
+$('bgToggle').addEventListener('change', async e => {
+  if (state.mediaIsVideo){ e.target.checked = false; showToast('Background removal works on photos, not video'); return; }
+  if (!state.mediaSrcEl){ e.target.checked = false; return; }
+  if (e.target.checked){
+    showToast('Removing background…');
+    await new Promise(r => setTimeout(r, 20));
+    try{
+      state.mediaProcessed = removeBackgroundCanvas(state.mediaSrcEl);
+      state.bgRemoved = true;
+      showToast('Background removed ✓');
+    } catch(err){
+      console.error(err);
+      showToast('Could not process this photo');
+      e.target.checked = false;
+    }
   } else {
-    // Fallback for older browsers
-    const dataUrl = ec.toDataURL(mime, 0.92);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = dataUrl.replace(mime, 'image/octet-stream');
-    a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function(){ document.body.removeChild(a); }, 100);
-    showToast('Download started');
+    state.bgRemoved = false;
   }
-}
+  render();
+});
 
-async function exportVideo(targetFormat){
-  if(!state.media || state.media.type !== 'video'){
-    showToast('Upload a video first to export as video');
-    return;
-  }
+/* ---------------------------------------------------------------
+   CONTENT-TYPE TOGGLE + STARS
+   --------------------------------------------------------------- */
+$('ctToggle').addEventListener('click', e => {
+  const b = e.target.closest('.ct-btn'); if (!b) return;
+  setContentType(b.dataset.type);
+});
+$('starRow').addEventListener('click', e => {
+  const b = e.target.closest('.star-btn'); if (!b) return;
+  setStars(parseInt(b.dataset.star, 10));
+  render();
+});
+$('inputReviewName').addEventListener('input', e => { state.reviewName = e.target.value; render(); });
+$('inputReviewQuote').addEventListener('input', e => {
+  state.reviewQuote = e.target.value;
+  $('reviewQuoteCount').textContent = e.target.value.length;
+  render();
+});
 
-  const video = state.media.videoEl;
-  if(!video || video.readyState < 2){
-    showToast('Video not ready yet');
-    return;
-  }
+/* ---------------------------------------------------------------
+   LOGO CONTROLS
+   --------------------------------------------------------------- */
+$('logoPosGrid').addEventListener('click', e => {
+  const b = e.target.closest('.seg-b'); if (!b) return;
+  $('logoPosGrid').querySelectorAll('.seg-b').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); state.logoPos = b.dataset.pos; render();
+});
+$('logoSizeGrid').addEventListener('click', e => {
+  const b = e.target.closest('.seg-b'); if (!b) return;
+  $('logoSizeGrid').querySelectorAll('.seg-b').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); state.logoSize = b.dataset.size; render();
+});
+$('logoMargin').addEventListener('input', e => {
+  state.logoMargin = parseInt(e.target.value, 10);
+  $('logoMarginVal').textContent = state.logoMargin;
+  render();
+});
 
-  if(isRecording){
-    // Cancel recording
-    isRecording = false;
-    if(mediaRecorder && mediaRecorder.state === 'recording'){
-      mediaRecorder.stop();
-    }
-    return;
-  }
+/* ---------------------------------------------------------------
+   TEXT FIELDS (promo)
+   --------------------------------------------------------------- */
+$('inputHeadline').addEventListener('input', e => {
+  state.headline = e.target.value; $('headlineCount').textContent = e.target.value.length; render();
+});
+$('inputSubheadline').addEventListener('input', e => { state.subheadline = e.target.value; render(); });
+$('inputPrice').addEventListener('input',       e => { state.price = e.target.value;       render(); });
+$('inputCTA').addEventListener('change',        e => { state.cta   = e.target.value;       render(); });
+$('inputContact').addEventListener('input',     e => { state.contact = e.target.value;     render(); });
+$('headlineCount').textContent = $('inputHeadline').value.length;
 
-  // Detect supported MIME type
-  let mimeType = 'video/webm;codecs=vp9,opus';
-  if(!MediaRecorder.isTypeSupported(mimeType)){
-    mimeType = 'video/webm;codecs=vp8,opus';
-    if(!MediaRecorder.isTypeSupported(mimeType)){
-      mimeType = 'video/webm';
-      if(!MediaRecorder.isTypeSupported(mimeType)){
-        showToast('Video export not supported in this browser');
-        return;
-      }
-    }
-  }
+/* ---------------------------------------------------------------
+   BADGES / THEMES
+   --------------------------------------------------------------- */
+$('badgeChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  $('badgeChips').querySelectorAll('.chip').forEach(x => x.classList.remove('selected'));
+  b.classList.add('selected'); state.badge = b.dataset.badge; render();
+});
+$('themeChips').addEventListener('click', e => {
+  const b = e.target.closest('.theme-chip'); if (!b) return;
+  $('themeChips').querySelectorAll('.theme-chip').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); state.theme = b.dataset.theme; render();
+});
 
-  // Show recording UI
-  isRecording = true;
-  updateRecordButton();
-  showToast('Recording video with sound…');
-
-  // 1. PREPARE AUDIO: Create AudioContext to capture sound from the video
-  //    This MUST be done while video is unmuted
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  // CRITICAL: Unmute video BEFORE creating MediaElementSource
-  // so the audio graph is active
-  video.muted = false;
-  video.volume = 1.0;
-
-  const audioSource = audioCtx.createMediaElementSource(video);
-  const audioDest = audioCtx.createMediaStreamDestination();
-  audioSource.connect(audioDest);
-  audioSource.connect(audioCtx.destination); // To speakers
-
-  // 2. PREPARE VIDEO: Get stream from the LIVE canvas
-  const videoStream = canvas.captureStream(30);
-
-  // 3. COMBINE: Merge canvas video + video element audio
-  const combinedStream = new MediaStream([
-    ...videoStream.getVideoTracks(),
-    ...audioDest.stream.getAudioTracks()
-  ]);
-
-  // 4. RECORD
-  mediaRecorder = new MediaRecorder(combinedStream, {
-    mimeType: mimeType,
-    videoBitsPerSecond: 8000000,
-    audioBitsPerSecond: 192000
+/* ---------------------------------------------------------------
+   TABS / LAYER TOGGLES
+   --------------------------------------------------------------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active'); $('tab-' + btn.dataset.tab).classList.add('active');
   });
+});
+document.querySelectorAll('.lv-toggle').forEach(btn => {
+  if (btn.disabled) return;
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.layer;
+    state.layerVis[key] = !state.layerVis[key];
+    btn.textContent = state.layerVis[key] ? '👁' : '🙈';
+    btn.style.opacity = state.layerVis[key] ? '1' : '0.35';
+    render();
+  });
+});
 
-  recordedChunks = [];
-  mediaRecorder.ondataavailable = function(e){
-    if(e.data && e.data.size > 0) recordedChunks.push(e.data);
+/* ---------------------------------------------------------------
+   BRAND KIT — persist + restore
+   --------------------------------------------------------------- */
+$('brandSwatches').addEventListener('click', e => {
+  const s = e.target.closest('.swatch'); if (!s) return;
+  document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+  s.classList.add('active'); state.brandColor = s.dataset.color; render();
+});
+$('extractedSwatches').addEventListener('click', e => {
+  const s = e.target.closest('.swatch'); if (!s) return;
+  document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+  s.classList.add('active'); state.brandColor = s.dataset.color; render();
+});
+
+$('btnSaveBrandKit').addEventListener('click', () => {
+  const kit = {
+    name: $('bkName').value.trim(), color: state.brandColor,
+    website: $('bkWebsite').value.trim(), phone: $('bkPhone').value.trim()
   };
+  try { localStorage.setItem('pf_brandkit', JSON.stringify(kit)); } catch(e){}
+  $('bkSavedPill').style.display = 'flex';
+  showToast('Brand kit saved ✓ — it will load automatically next time');
+});
 
-  mediaRecorder.onstop = function(){
-    audioCtx.close();
-
-    const blob = new Blob(recordedChunks, {type: mimeType});
-    const ext = 'webm';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = 'postforge_' + state.platform.key + '_' + Date.now() + '.' + ext;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function(){
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
-
-    isRecording = false;
-    updateRecordButton();
-    showToast('Video saved with sound!');
-
-    // Restore preview state
-    if(state.media && state.media.type === 'video'){
-      video.muted = true;
-      video.play().catch(function(){});
-      startVideoLoop();
-    }
-  };
-
-  mediaRecorder.onerror = function(err){
-    console.error('MediaRecorder error:', err);
-    audioCtx.close();
-    isRecording = false;
-    updateRecordButton();
-    showToast('Export failed');
-    if(state.media && state.media.type === 'video'){
-      video.muted = true;
-      video.play().catch(function(){});
-      startVideoLoop();
-    }
-  };
-
-  // 5. START: Reset to beginning, play, and record
-  video.currentTime = 0;
-  video.play();
-  mediaRecorder.start(100);
-
-  // Stop when video ends
-  video.onended = function(){
-    if(mediaRecorder && mediaRecorder.state === 'recording'){
-      mediaRecorder.stop();
-    }
-  };
-
-  // Fallback safety stop
-  setTimeout(function(){
-    if(mediaRecorder && mediaRecorder.state === 'recording'){
-      mediaRecorder.stop();
-    }
-  }, (video.duration * 1000) + 3000);
-}
-
-function updateRecordButton(){
-  const label = isRecording ? 'Stop Recording' : 'Download';
-  const label2 = isRecording ? 'Stop Recording' : 'Download content';
-  const bg = isRecording ? '#e63946' : '';
-  $('btnExport').innerHTML = isRecording ? 'Stop Recording' : '⬇ Download';
-  $('btnExport').style.background = bg;
-  $('btnExport2').innerHTML = isRecording ? 'Stop Recording' : '⬇ Download content';
-  $('btnExport2').style.background = bg;
-}
-
-/* ---------- INIT ---------- */
-function init(){
-  // Media upload
-  const dzMedia = $('dzMedia');
-  const inputMedia = $('inputMedia');
-  dzMedia.addEventListener('click', ()=>inputMedia.click());
-  dzMedia.addEventListener('dragover', e=>{ e.preventDefault(); dzMedia.classList.add('over'); });
-  dzMedia.addEventListener('dragleave', ()=>dzMedia.classList.remove('over'));
-  dzMedia.addEventListener('drop', e=>{
-    e.preventDefault(); dzMedia.classList.remove('over');
-    if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], 'media');
-  });
-  inputMedia.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], 'media'); });
-  $('mediaRemove').addEventListener('click', ()=>{
-    state.media = null; $('mediaThumbRow').style.display = 'none';
-    $('dzMedia').classList.remove('done'); inputMedia.value = '';
-    if(!state.logo) $('stageEmptyHint').style.display = 'flex';
-    scheduleRender();
-  });
-
-  // Logo upload
-  const dzLogo = $('dzLogo');
-  const inputLogo = $('inputLogo');
-  dzLogo.addEventListener('click', ()=>inputLogo.click());
-  dzLogo.addEventListener('dragover', e=>{ e.preventDefault(); dzLogo.classList.add('over'); });
-  dzLogo.addEventListener('dragleave', ()=>dzLogo.classList.remove('over'));
-  dzLogo.addEventListener('drop', e=>{
-    e.preventDefault(); dzLogo.classList.remove('over');
-    if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], 'logo');
-  });
-  inputLogo.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], 'logo'); });
-  $('logoRemove').addEventListener('click', ()=>{
-    state.logo = null; $('logoThumbRow').style.display = 'none';
-    $('dzLogo').classList.remove('done'); inputLogo.value = '';
-    if(!state.media) $('stageEmptyHint').style.display = 'flex';
-    scheduleRender();
-  });
-
-  // Logo controls
-  $('logoPosGrid').addEventListener('click', e=>{
-    const btn = e.target.closest('.seg-b'); if(!btn) return;
-    $('logoPosGrid').querySelectorAll('.seg-b').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); state.logoPos = btn.dataset.pos; scheduleRender();
-  });
-  $('logoSizeGrid').addEventListener('click', e=>{
-    const btn = e.target.closest('.seg-b'); if(!btn) return;
-    $('logoSizeGrid').querySelectorAll('.seg-b').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); state.logoSize = btn.dataset.size; scheduleRender();
-  });
-  $('logoMargin').addEventListener('input', e=>{
-    state.logoMargin = parseInt(e.target.value);
-    $('logoMarginVal').textContent = state.logoMargin;
-    scheduleRender();
-  });
-
-  // Text inputs
-  $('inputHeadline').addEventListener('input', e=>{
-    state.headline = e.target.value; $('headlineCount').textContent = e.target.value.length; scheduleRender();
-  });
-  $('inputSubheadline').addEventListener('input', e=>{ state.subheadline = e.target.value; scheduleRender(); });
-  $('inputPrice').addEventListener('input', e=>{ state.price = e.target.value; scheduleRender(); });
-  $('inputCTA').addEventListener('change', e=>{ state.cta = e.target.value; scheduleRender(); });
-  $('inputContact').addEventListener('input', e=>{ state.contact = e.target.value; scheduleRender(); });
-
-  // Badges & themes
-  $('badgeChips').addEventListener('click', e=>{
-    const btn = e.target.closest('.chip'); if(!btn) return;
-    $('badgeChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('selected'));
-    btn.classList.add('selected'); state.badge = btn.dataset.badge; scheduleRender();
-  });
-  $('themeChips').addEventListener('click', e=>{
-    const btn = e.target.closest('.chip'); if(!btn) return;
-    $('themeChips').querySelectorAll('.chip').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); state.theme = btn.dataset.theme; scheduleRender();
-  });
-
-  // Platform
-  $('platformSelect').addEventListener('change', e=>{
-    const opt = e.target.selectedOptions[0];
-    state.platform = {w:parseInt(opt.dataset.w), h:parseInt(opt.dataset.h), key:e.target.value};
-    canvas.width = state.platform.w;
-    canvas.height = state.platform.h;
-    $('stageDims').textContent = state.platform.w + ' x ' + state.platform.h + ' px';
-    updateStageSize(); scheduleRender();
-  });
-
-  // Tabs
-  document.querySelectorAll('.tab-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-      btn.classList.add('active'); $('tab-' + btn.dataset.tab).classList.add('active');
-    });
-  });
-
-  // Layer toggles
-  document.querySelectorAll('.lv-toggle').forEach(btn=>{
-    if(btn.disabled) return;
-    btn.addEventListener('click', ()=>{
-      const layer = btn.dataset.layer;
-      state.layers[layer] = !state.layers[layer];
-      btn.textContent = state.layers[layer] ? '👁' : '🙈';
-      btn.style.opacity = state.layers[layer] ? '1' : '0.35';
-      scheduleRender();
-    });
-  });
-
-  // Brand color
-  $('brandSwatches').addEventListener('click', e=>{
-    const sw = e.target.closest('.swatch'); if(!sw) return;
-    $('brandSwatches').querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
-    sw.classList.add('active'); state.brandColor = sw.dataset.color; scheduleRender();
-  });
-
-  // Brand kit save/load
-  $('btnSaveBrandKit').addEventListener('click', ()=>{
-    const kit = {name:$('bkName').value, color:state.brandColor, phone:$('bkPhone').value, website:$('bkWebsite').value};
-    localStorage.setItem('postforge_brandkit', JSON.stringify(kit));
-    $('bkSavedPill').style.display = 'flex';
-    showToast('Brand kit saved');
-  });
-  try{
-    const saved = localStorage.getItem('postforge_brandkit');
-    if(saved){
-      const kit = JSON.parse(saved);
-      $('bkName').value = kit.name || ''; $('bkPhone').value = kit.phone || ''; $('bkWebsite').value = kit.website || '';
-      if(kit.color){ state.brandColor = kit.color; $('brandSwatches').querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active', s.dataset.color === kit.color)); }
-      $('bkSavedPill').style.display = 'flex';
+function loadBrandKit(){
+  try {
+    const savedLogo = localStorage.getItem('pf_logo');
+    if (savedLogo){
+      const img = new Image();
+      img.onload = () => {
+        state.logoImg = img;
+        $('logoThumbRow').style.display = 'flex';
+        $('logoThumb').src = savedLogo;
+        $('logoName').textContent = 'Saved logo';
+        $('dzLogo').classList.add('done');
+        render();
+      };
+      img.src = savedLogo;
     }
   } catch(e){}
-
-  // Export settings
-  document.querySelectorAll('input[name="q"]').forEach(r=>{
-    r.addEventListener('change', e=>{ state.quality = parseInt(e.target.value); });
-  });
-  document.querySelectorAll('.fmt-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      if(btn.disabled) return;
-      document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active'); state.format = btn.dataset.fmt;
-      updateRecordButton();
-    });
-  });
-
-  // Export buttons
-  $('btnExport').addEventListener('click', doExport);
-  $('btnExport2').addEventListener('click', doExport);
-
-  // Modal
-  $('btnTemplates').addEventListener('click', ()=>{ $('modalTemplates').classList.add('open'); populateTemplates(); });
-  $('btnBrandKit').addEventListener('click', ()=>{
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
-    document.querySelector('[data-tab="brand"]').classList.add('active');
-    $('tab-brand').classList.add('active');
-  });
-  document.querySelector('#modalTemplates .modal-close').addEventListener('click', ()=> $('modalTemplates').classList.remove('open'));
-  document.querySelector('#modalTemplates .modal-backdrop').addEventListener('click', ()=> $('modalTemplates').classList.remove('open'));
-
-  // Responsive
-  window.addEventListener('resize', updateStageSize);
-  canvas.width = state.platform.w;
-  canvas.height = state.platform.h;
-  updateStageSize();
-  scheduleRender();
+  try {
+    const raw = localStorage.getItem('pf_brandkit');
+    if (!raw) return;
+    const kit = JSON.parse(raw);
+    if (kit.name)    $('bkName').value    = kit.name;
+    if (kit.website) $('bkWebsite').value = kit.website;
+    if (kit.phone){ $('bkPhone').value = kit.phone; state.contact = kit.phone; $('inputContact').value = kit.phone; }
+    if (kit.color){
+      state.brandColor = kit.color;
+      document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === kit.color));
+    }
+    $('bkSavedPill').style.display = 'flex';
+  } catch(e){}
 }
 
-function updateStageSize(){
-  const shell = $('stageShell');
-  const wrap = document.querySelector('.stage-wrap');
-  const {w, h} = state.platform;
-  const aspect = w / h;
-  const maxW = wrap.clientWidth - 56;
-  const maxH = wrap.clientHeight - 120;
-  let cw = maxW, ch = cw / aspect;
-  if(ch > maxH){ ch = maxH; cw = ch * aspect; }
-  shell.style.width = cw + 'px';
-  shell.style.height = ch + 'px';
+/* ---------------------------------------------------------------
+   TEMPLATE LIBRARY
+   --------------------------------------------------------------- */
+function applyTemplate(tpl){
+  if (tpl.type === 'review'){
+    setContentType('review');
+    state.reviewQuote = tpl.quote; state.reviewName = tpl.reviewer; state.theme = tpl.theme;
+    $('inputReviewQuote').value = tpl.quote; $('reviewQuoteCount').textContent = tpl.quote.length;
+    $('inputReviewName').value = tpl.reviewer;
+    setStars(tpl.stars);
+  } else {
+    setContentType('promo');
+    state.headline = tpl.headline; state.subheadline = tpl.sub; state.price = tpl.price;
+    state.cta = tpl.cta; state.badge = tpl.badge; state.theme = tpl.theme;
+    $('inputHeadline').value = tpl.headline; $('headlineCount').textContent = tpl.headline.length;
+    $('inputSubheadline').value = tpl.sub; $('inputPrice').value = tpl.price; $('inputCTA').value = tpl.cta;
+    document.querySelectorAll('#badgeChips .chip').forEach(b => b.classList.toggle('selected', b.dataset.badge === tpl.badge));
+  }
+  document.querySelectorAll('.theme-chip').forEach(b => b.classList.toggle('active', b.dataset.theme === tpl.theme));
+  render();
+  $('modalTemplates').classList.remove('open');
+  showToast(`Template "${tpl.name}" applied ✓`);
 }
 
 function populateTemplates(){
-  const cats = {
-    'Restaurant & Cafe': [
-      {name:'Weekend Special', desc:'Bold food promo with price'},
-      {name:'New Menu Item', desc:'Clean minimal announcement'},
-      {name:'Happy Hour', desc:'Festive limited-time offer'},
-    ],
-    'Retail & Fashion': [
-      {name:'Flash Sale', desc:'High-urgency discount post'},
-      {name:'New Arrival', desc:'Elegant product showcase'},
-      {name:'Season Clearance', desc:'Bold price-driven design'},
-    ],
-    'Services': [
-      {name:'Book Now', desc:'Professional CTA layout'},
-      {name:'Free Quote', desc:'Trust-building service promo'},
-    ],
-    'Real Estate': [
-      {name:'Open House', desc:'Premium property listing'},
-      {name:'Just Listed', desc:'Clean modern home showcase'},
-    ],
-  };
+  const cats = [
+    { key:'testimonial', label:'💬 Customer Review' },
+    { key:'restaurant',  label:'🍽 Restaurant'  },
+    { key:'cafe',        label:'☕ Cafe'         },
+    { key:'retail',      label:'🛍 Retail'       },
+    { key:'clothing',    label:'👗 Clothing'     },
+    { key:'salon',       label:'💅 Salon'        },
+    { key:'service',     label:'🔧 Service'      },
+    { key:'festival',    label:'🎉 Festival'     }
+  ];
   const container = $('tmplCategories');
   container.innerHTML = '';
-  for(const [cat, items] of Object.entries(cats)){
+  cats.forEach(cat => {
+    const items = TEMPLATES[cat.key] || [];
+    if (!items.length) return;
     const label = document.createElement('div');
     label.className = 'tmpl-cat-label';
-    label.textContent = cat;
+    label.textContent = cat.label;
     container.appendChild(label);
     const grid = document.createElement('div');
     grid.className = 'tmpl-grid';
-    items.forEach(item=>{
+    items.forEach(tpl => {
       const card = document.createElement('button');
       card.className = 'tmpl-card';
-      card.innerHTML = '<strong>' + item.name + '</strong><span>' + item.desc + '</span>';
-      card.addEventListener('click', ()=>{ applyTemplate(item.name); $('modalTemplates').classList.remove('open'); });
+      card.innerHTML = `<strong>${tpl.name}</strong><span>${tpl.type === 'review' ? tpl.quote.slice(0, 34) + '…' : tpl.headline}</span>`;
+      card.addEventListener('click', () => applyTemplate(tpl));
       grid.appendChild(card);
     });
     container.appendChild(grid);
+  });
+}
+
+$('btnTemplates').addEventListener('click', () => { $('modalTemplates').classList.add('open'); populateTemplates(); });
+$('btnBrandKit').addEventListener('click', () => document.querySelector('.tab-btn[data-tab="brand"]').click());
+document.querySelector('#modalTemplates .modal-close').addEventListener('click', () => $('modalTemplates').classList.remove('open'));
+document.querySelector('#modalTemplates .modal-backdrop').addEventListener('click', () => $('modalTemplates').classList.remove('open'));
+
+/* ---------------------------------------------------------------
+   PLATFORM PICKER + BATCH CHECKLIST (built from PLATFORMS)
+   --------------------------------------------------------------- */
+function buildPlatformUI(){
+  $('platformSelect').innerHTML = Object.entries(PLATFORMS).map(([key, p]) =>
+    `<option value="${key}">${p.label} · ${p.w}×${p.h}</option>`
+  ).join('');
+  $('batchPlatList').innerHTML = Object.entries(PLATFORMS).map(([key, p]) =>
+    `<label class="batch-row"><input type="checkbox" class="batch-chk" value="${key}" checked>${p.label}<span class="dims">${p.w}×${p.h}</span></label>`
+  ).join('');
+}
+$('platformSelect').addEventListener('change', e => applyPlatform(e.target.value));
+$('batchSelectAll').addEventListener('click', () => document.querySelectorAll('.batch-chk').forEach(c => c.checked = true));
+$('batchSelectNone').addEventListener('click', () => document.querySelectorAll('.batch-chk').forEach(c => c.checked = false));
+
+/* ---------------------------------------------------------------
+   EXPORT — single platform, image formats
+   --------------------------------------------------------------- */
+let exportFormat = 'png';
+document.querySelectorAll('.fmt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); exportFormat = btn.dataset.fmt;
+    updateRecordButtonLabel();
+  });
+});
+
+function renderPlatformToCanvas(key, mult){
+  const p = PLATFORMS[key];
+  const outW = p.w * mult, outH = p.h * mult;
+  const ec = document.createElement('canvas');
+  ec.width = outW; ec.height = outH;
+  renderCore(ec.getContext('2d'), outW, outH);
+  return ec;
+}
+
+function doExport(){
+  if (exportFormat === 'mp4'){
+    if (isRecording){ cancelRecording(); return; }
+    exportSingleVideo();
+    return;
   }
+  const mult = parseInt(document.querySelector('input[name="q"]:checked')?.value || '1', 10);
+  const ec = renderPlatformToCanvas(state.platformKey, mult);
+  const mime = exportFormat === 'jpg' ? 'image/jpeg' : 'image/png';
+  const ext  = exportFormat === 'jpg' ? 'jpg' : 'png';
+  ec.toBlob(blob => {
+    if (!blob){ showToast('Export failed'); return; }
+    downloadBlob(blob, `postforge_${state.platformKey}_${ec.width}x${ec.height}.${ext}`);
+    showToast('Download started');
+  }, mime, 0.95);
+}
+$('btnExport').addEventListener('click', doExport);
+$('btnExport2').addEventListener('click', doExport);
+
+/* ---------------------------------------------------------------
+   VIDEO EXPORT — records the live canvas with the source video's
+   own audio. The video element can only ever be connected to ONE
+   MediaElementAudioSourceNode for its whole lifetime, so that
+   source is created once and reused (a fresh MediaStreamDestination
+   is created per recording, so re-recording — including batch — is
+   safe).
+   --------------------------------------------------------------- */
+let isRecording = false;
+let activeRecorder = null;
+let cachedAudioCtx = null;
+let cachedAudioSource = null;
+
+function getVideoAudioSource(video){
+  if (!cachedAudioCtx) cachedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!cachedAudioSource){
+    video.muted = false; video.volume = 1.0;
+    cachedAudioSource = cachedAudioCtx.createMediaElementSource(video);
+    cachedAudioSource.connect(cachedAudioCtx.destination);
+  }
+  return { ctx: cachedAudioCtx, source: cachedAudioSource };
 }
 
-function applyTemplate(name){
-  const map = {
-    'Weekend Special': {theme:'bold', headline:'Weekend Special', subheadline:'Limited time only', price:'20% OFF', cta:'Order Now', badge:'SALE'},
-    'New Menu Item': {theme:'modern', headline:'New on the Menu', subheadline:'Try it today', price:'', cta:'Explore Now', badge:'NEW'},
-    'Happy Hour': {theme:'festive', headline:'Happy Hour', subheadline:'4PM – 7PM daily', price:'50% OFF Drinks', cta:'Book Today', badge:'HOT'},
-    'Flash Sale': {theme:'bold', headline:'Flash Sale', subheadline:'Ends midnight tonight', price:'Up to 70% OFF', cta:'Shop Now', badge:'LIMITED OFFER'},
-    'New Arrival': {theme:'luxury', headline:'New Arrival', subheadline:'Spring Collection 2026', price:'', cta:'Explore Now', badge:'NEW'},
-    'Season Clearance': {theme:'bold', headline:'End of Season', subheadline:'Last chance to save', price:'From Rs. 499', cta:'Shop Now', badge:'SALE'},
-    'Book Now': {theme:'premium', headline:'Book Your Appointment', subheadline:'Expert care, every time', price:'', cta:'Book Today', badge:''},
-    'Free Quote': {theme:'modern', headline:'Get a Free Quote', subheadline:'No obligation, fast response', price:'', cta:'Get Quote', badge:''},
-    'Open House': {theme:'luxury', headline:'Open House This Sat', subheadline:'12PM – 3PM · 42 Main St', price:'', cta:'Learn More', badge:'NEW'},
-    'Just Listed': {theme:'modern', headline:'Just Listed', subheadline:'Stunning 3-bed family home', price:'$850,000', cta:'Learn More', badge:'HOT'},
-  };
-  const t = map[name]; if(!t) return;
-  state.theme = t.theme; state.headline = t.headline; state.subheadline = t.subheadline;
-  state.price = t.price; state.cta = t.cta; state.badge = t.badge;
-  $('inputHeadline').value = t.headline; $('headlineCount').textContent = t.headline.length;
-  $('inputSubheadline').value = t.subheadline; $('inputPrice').value = t.price; $('inputCTA').value = t.cta;
-  $('themeChips').querySelectorAll('.chip').forEach(b=>b.classList.toggle('active', b.dataset.theme === t.theme));
-  $('badgeChips').querySelectorAll('.chip').forEach(b=>b.classList.toggle('selected', b.dataset.badge === t.badge));
-  showToast('Applied: ' + name);
-  scheduleRender();
+function pickVideoMimeType(){
+  const options = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  return options.find(m => MediaRecorder.isTypeSupported(m)) || null;
 }
 
+function recordCurrentCanvasAsVideo(){
+  return new Promise((resolve, reject) => {
+    const video = state.mediaSrcEl;
+    const mimeType = pickVideoMimeType();
+    if (!mimeType){ reject(new Error('Video export not supported in this browser')); return; }
+
+    const { ctx: audioCtx, source: audioSource } = getVideoAudioSource(video);
+    const audioDest = audioCtx.createMediaStreamDestination();
+    audioSource.connect(audioDest);
+
+    const videoStream = canvas.captureStream(30);
+    const combined = new MediaStream([...videoStream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
+    const rec = new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 8000000, audioBitsPerSecond: 192000 });
+    activeRecorder = rec;
+
+    const chunks = [];
+    rec.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = () => {
+      try { audioSource.disconnect(audioDest); } catch(e){}
+      activeRecorder = null;
+      resolve(new Blob(chunks, { type: mimeType }));
+    };
+    rec.onerror = err => {
+      try { audioSource.disconnect(audioDest); } catch(e){}
+      activeRecorder = null;
+      reject(err);
+    };
+
+    const wasLooping = video.loop;
+    video.loop = false;
+    video.currentTime = 0;
+    startVideoLoop();
+    video.play();
+    rec.start(100);
+    video.onended = () => { video.loop = wasLooping; if (rec.state === 'recording') rec.stop(); };
+    setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, (video.duration * 1000 || 15000) + 3000);
+  });
+}
+
+function cancelRecording(){
+  if (activeRecorder && activeRecorder.state === 'recording') activeRecorder.stop();
+  isRecording = false;
+  updateRecordButtonLabel();
+}
+
+async function exportSingleVideo(){
+  if (!state.mediaIsVideo || !state.mediaSrcEl || state.mediaSrcEl.readyState < 2){
+    showToast('Upload a video first to export as video'); return;
+  }
+  isRecording = true; updateRecordButtonLabel();
+  showToast('Recording video with sound…');
+  try{
+    const blob = await recordCurrentCanvasAsVideo();
+    downloadBlob(blob, `postforge_${state.platformKey}_${state.platformW}x${state.platformH}.webm`);
+    showToast('Video saved with sound ✓');
+  } catch(err){
+    console.error(err);
+    showToast('Video export failed');
+  }
+  isRecording = false; updateRecordButtonLabel();
+  if (state.mediaIsVideo){ state.mediaSrcEl.muted = true; state.mediaSrcEl.play().catch(()=>{}); }
+}
+
+function updateRecordButtonLabel(){
+  const label = isRecording ? '⏹ Stop Recording' : '⬇ Download';
+  $('btnExport').innerHTML = label;
+  $('btnExport').style.background = isRecording ? '#e63946' : '';
+  $('btnExport2').innerHTML = isRecording ? '⏹ Stop Recording' : '⬇ Download content';
+  $('btnExport2').style.background = isRecording ? '#e63946' : '';
+}
+
+/* ---------------------------------------------------------------
+   BATCH EXPORT — every checked platform, one click, one ZIP
+   --------------------------------------------------------------- */
+function setBatchProgress(pct, label){
+  $('bpLabelText').textContent = label;
+  $('bpLabelPct').textContent = Math.round(pct) + '%';
+  $('bpFill').style.width = Math.round(pct) + '%';
+}
+
+async function runImageBatch(keys){
+  const mult = parseInt(document.querySelector('input[name="q"]:checked')?.value || '1', 10);
+  const mime = exportFormat === 'jpg' ? 'image/jpeg' : 'image/png';
+  const ext  = exportFormat === 'jpg' ? 'jpg' : 'png';
+  const zip = (typeof JSZip !== 'undefined') ? new JSZip() : null;
+  const loose = [];
+
+  for (let i = 0; i < keys.length; i++){
+    const key = keys[i], p = PLATFORMS[key];
+    setBatchProgress((i / keys.length) * 100, `Rendering ${p.label} (${i+1}/${keys.length})`);
+    await new Promise(r => setTimeout(r, 10));
+    const ec = renderPlatformToCanvas(key, mult);
+    const blob = await new Promise(res => ec.toBlob(res, mime, 0.95));
+    const fname = `postforge_${key}_${ec.width}x${ec.height}.${ext}`;
+    if (zip) zip.file(fname, blob); else loose.push({ blob, fname });
+  }
+
+  setBatchProgress(100, 'Packaging…');
+  if (zip){
+    const content = await zip.generateAsync({ type:'blob' });
+    downloadBlob(content, `postforge_all_platforms_${Date.now()}.zip`);
+  } else {
+    for (const item of loose){ downloadBlob(item.blob, item.fname); await new Promise(r => setTimeout(r, 150)); }
+  }
+  showToast(`Generated ${keys.length} platform-ready images ✓`);
+}
+
+async function runVideoBatch(keys){
+  if (!state.mediaSrcEl || state.mediaSrcEl.readyState < 2){ showToast('Video not ready yet'); return; }
+  const savedKey = state.platformKey, savedW = state.platformW, savedH = state.platformH;
+  const zip = (typeof JSZip !== 'undefined') ? new JSZip() : null;
+
+  for (let i = 0; i < keys.length; i++){
+    const key = keys[i], p = PLATFORMS[key];
+    setBatchProgress((i / keys.length) * 100, `Recording ${p.label} (${i+1}/${keys.length}) — real time`);
+    canvas.width = p.w; canvas.height = p.h;
+    try{
+      const blob = await recordCurrentCanvasAsVideo();
+      const fname = `postforge_${key}_${p.w}x${p.h}.webm`;
+      if (zip) zip.file(fname, blob); else downloadBlob(blob, fname);
+    } catch(err){
+      console.error(err);
+      showToast(`Skipped ${p.label} — recording failed`);
+    }
+  }
+
+  state.platformKey = savedKey; state.platformW = savedW; state.platformH = savedH;
+  canvas.width = savedW; canvas.height = savedH;
+  fitStageShell(); render();
+
+  setBatchProgress(100, 'Packaging…');
+  if (zip){
+    const content = await zip.generateAsync({ type:'blob' });
+    downloadBlob(content, `postforge_all_platforms_video_${Date.now()}.zip`);
+  }
+  showToast(`Rendered ${keys.length} platform videos ✓`);
+  if (state.mediaIsVideo){ state.mediaSrcEl.muted = true; state.mediaSrcEl.play().catch(()=>{}); }
+}
+
+async function runBatchExport(){
+  const keys = [...document.querySelectorAll('.batch-chk:checked')].map(c => c.value);
+  if (!keys.length){ showToast('Pick at least one platform'); return; }
+
+  $('batchProgress').classList.add('show');
+  $('btnBatchGo').disabled = true;
+  setBatchProgress(0, 'Starting…');
+
+  try{
+    if (state.mediaIsVideo) await runVideoBatch(keys);
+    else await runImageBatch(keys);
+  } catch(err){
+    console.error(err);
+    showToast('Batch export hit a problem — check the browser console');
+  }
+
+  setTimeout(() => { $('batchProgress').classList.remove('show'); $('btnBatchGo').disabled = false; }, 500);
+}
+$('btnBatchGo').addEventListener('click', runBatchExport);
+$('btnGenerateAll').addEventListener('click', () => {
+  document.querySelector('.tab-btn[data-tab="export"]').click();
+  runBatchExport();
+});
+
+/* ---------------------------------------------------------------
+   QUALITY RADIO (kept for single export; batch reads it live)
+   --------------------------------------------------------------- */
+document.querySelectorAll('input[name="q"]').forEach(r => r.addEventListener('change', () => {}));
+
+/* ---------------------------------------------------------------
+   INIT
+   --------------------------------------------------------------- */
+function init(){
+  buildPlatformUI();
+  loadBrandKit();
+  window.addEventListener('resize', fitStageShell);
+  applyPlatform('ig_post');
+}
 document.addEventListener('DOMContentLoaded', init);
 
 </script>
